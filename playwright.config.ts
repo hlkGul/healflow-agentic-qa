@@ -6,7 +6,7 @@ export default defineConfig({
   retries: 0,
   use: {
     baseURL: 'https://www.modanisa.com',
-    headless: false,
+    headless: !!process.env['CI'],
     viewport: { width: 1280, height: 720 },
     actionTimeout: 10000,
     navigationTimeout: 15000,
