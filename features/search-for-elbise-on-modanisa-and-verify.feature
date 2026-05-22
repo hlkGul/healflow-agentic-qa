@@ -1,4 +1,3 @@
-```gherkin
 Feature: Search on Modanisa and verify results
 
   Scenario: Search for 'elbise' on Modanisa and verify results
@@ -6,4 +5,3 @@ Feature: Search on Modanisa and verify results
     When I type "elbise" in the search input
     And I press Enter in the search input
     Then I should see search results for "elbise"
-```

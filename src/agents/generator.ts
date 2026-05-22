@@ -1,5 +1,5 @@
-import { writeFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { writeFileSync, readdirSync, unlinkSync, existsSync, mkdirSync } from 'node:fs';
+import { resolve, join } from 'node:path';
 import { callGemini } from '../utils/gemini-client.js';
 import type { AcceptanceCriteria, GeneratedTestCode, LocatorInfo } from '../types/index.js';
 import type { GraphStateType } from '../graph/state.js';
@@ -64,7 +64,14 @@ export async function generatorAgent(state: GraphStateType): Promise<Partial<Gra
 
   const locators = extractLocators(code);
   const fileName = `test-${Date.now()}.spec.ts`;
-  const filePath = resolve(process.cwd(), 'tests', 'generated', fileName);
+  const generatedDir = resolve(process.cwd(), 'tests', 'generated');
+
+  // Clean old generated tests
+  if (!existsSync(generatedDir)) mkdirSync(generatedDir, { recursive: true });
+  const oldFiles = readdirSync(generatedDir).filter((f) => f.endsWith('.spec.ts'));
+  for (const f of oldFiles) unlinkSync(join(generatedDir, f));
+
+  const filePath = join(generatedDir, fileName);
   writeFileSync(filePath, code, 'utf-8');
 
   const generatedCode: GeneratedTestCode = {

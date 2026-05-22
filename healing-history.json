@@ -1,7 +1,7 @@
 [
   {
-    "id": "heal-1779454221453",
-    "timestamp": "2026-05-22T12:50:21.453Z",
+    "id": "heal-1779454486591",
+    "timestamp": "2026-05-22T12:54:46.591Z",
     "element": "unknown element",
     "originalLocator": {
       "description": "unknown element",
@@ -10,12 +10,12 @@
       "line": 0
     },
     "healedLocator": {
-      "description": "textbox to enter search query",
+      "description": "textbox with label 'Ürün, Marka veya Kategorileri Arayın'",
       "strategy": "getByPlaceholder",
       "value": "'Ürün, Marka veya Kategorileri Arayın'",
       "line": 5
     },
-    "reason": "The accessibility tree shows a textbox with the placeholder 'Ürün, Marka veya Kategorileri Arayın'. This seems to be the correct search input field based on the context.",
+    "reason": "The test is trying to fill the search input. The accessibility tree shows a textbox with the placeholder 'Ürün, Marka veya Kategorileri Arayın'. This seems to be the correct element.",
     "success": false,
     "accessibilityContext": "- dialog \"This website uses cookies\":\n  - img \"logo\"\n  - link \"Cookiebot by Usercentrics - opens in a new window\":\n    - /url: https://www.cookiebot.com/en/what-is-behind-powered-by-cookiebot/?utm_source=banner_cb&utm_medium=referral&utm_content=v2\n  - tabpanel \"Consent\":\n    - heading \"This website uses cookies\" [level=2]\n    - text: We use cookies to personalise content and ads, to provide social media features and to analyse our traffic. We also share information about your use of our site wi"
   }

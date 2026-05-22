@@ -1,5 +1,5 @@
-import { writeFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { writeFileSync, readdirSync, unlinkSync, existsSync, mkdirSync } from 'node:fs';
+import { resolve, join } from 'node:path';
 import { callGeminiWithJson } from '../utils/gemini-client.js';
 import type { AcceptanceCriteria, TestIntent } from '../types/index.js';
 import type { GraphStateType } from '../graph/state.js';
@@ -41,9 +41,13 @@ export async function plannerAgent(state: GraphStateType): Promise<Partial<Graph
     { maxTokens: 2048, temperature: 0.1 }
   );
 
-  // Write criteria to markdown file
+  // Write criteria to markdown file (clean old ones first)
+  const criteriaDir = resolve(process.cwd(), 'criteria');
+  if (!existsSync(criteriaDir)) mkdirSync(criteriaDir, { recursive: true });
+  cleanDirectory(criteriaDir);
+
   const mdContent = formatCriteriaAsMarkdown(criteria, intent);
-  const filePath = resolve(process.cwd(), 'criteria', `${slugify(criteria.title)}.md`);
+  const filePath = join(criteriaDir, `${slugify(criteria.title)}.md`);
   writeFileSync(filePath, mdContent, 'utf-8');
 
   return {
@@ -88,4 +92,14 @@ function slugify(text: string): string {
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-|-$/g, '')
     .slice(0, 50);
+}
+
+function cleanDirectory(dir: string): void {
+  if (!existsSync(dir)) return;
+  const files = readdirSync(dir);
+  for (const file of files) {
+    if (file.endsWith('.md')) {
+      unlinkSync(join(dir, file));
+    }
+  }
 }

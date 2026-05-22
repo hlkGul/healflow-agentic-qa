@@ -65,19 +65,27 @@ function parseResponse(text: string): { feature: string; steps: string } {
   const featureMatch = text.match(/---FEATURE---\n([\s\S]*?)---STEPS---/);
   const stepsMatch = text.match(/---STEPS---\n([\s\S]*?)$/);
 
-  const feature = featureMatch?.[1]?.trim() ?? generateFallbackFeature(text);
-  let steps = stepsMatch?.[1]?.trim() ?? generateFallbackSteps(text);
+  let feature = featureMatch?.[1]?.trim() ?? generateFallbackFeature();
+  let steps = stepsMatch?.[1]?.trim() ?? generateFallbackSteps();
 
-  // Clean markdown fences
-  steps = steps.replace(/^```typescript?\n?/m, '').replace(/\n?```$/m, '');
+  // Clean markdown fences from both outputs
+  feature = cleanMarkdownFences(feature);
+  steps = cleanMarkdownFences(steps);
 
   return { feature, steps };
 }
 
-function generateFallbackFeature(text: string): string {
+function cleanMarkdownFences(text: string): string {
+  return text
+    .replace(/^```(?:typescript|gherkin|ts)?\n?/gm, '')
+    .replace(/\n?```$/gm, '')
+    .trim();
+}
+
+function generateFallbackFeature(): string {
   return `Feature: Generated Test\n\n  Scenario: Auto-generated\n    Given the user is on the target page\n    When the test actions are performed\n    Then the expected results are verified`;
 }
 
-function generateFallbackSteps(text: string): string {
+function generateFallbackSteps(): string {
   return `import { Given, When, Then } from '@cucumber/cucumber';\nimport { chromium, Page } from '@playwright/test';\n\n// Auto-generated step definitions\n`;
 }

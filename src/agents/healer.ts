@@ -136,24 +136,26 @@ async function captureAccessibilityTree(url: string, testCode: string) {
   try {
     await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 15000 });
 
-    // Try to execute test steps up to the failure point
-    // Extract actions before the failing assertion
-    const actionLines = extractActionsFromCode(testCode);
-    for (const action of actionLines) {
+    // Replay test actions up to the failure point using Playwright API
+    const actions = extractActionsFromCode(testCode);
+    for (const action of actions) {
       try {
-        await page.evaluate(() => {}); // no-op to keep connection alive
-        // Execute action by eval — simplified approach
-        const fn = new Function('page', `return (async () => { ${action} })();`);
-        await fn(page);
+        if (action.type === 'goto') {
+          await page.goto(action.value, { timeout: 10000 });
+        } else if (action.type === 'fill') {
+          await page.locator(action.selector).fill(action.value, { timeout: 5000 });
+        } else if (action.type === 'press') {
+          await page.locator(action.selector).press(action.value, { timeout: 5000 });
+        } else if (action.type === 'click') {
+          await page.locator(action.selector).click({ timeout: 5000 });
+        }
       } catch {
-        // Stop at first failure — this is where we capture the tree
+        // Stop at first failure — capture tree at this point
         break;
       }
     }
 
-    // Small wait for any dynamic content to load
     await page.waitForLoadState('domcontentloaded').catch(() => {});
-
     const snapshot = await getAccessibilitySnapshot(page);
     return snapshot;
   } finally {
@@ -161,30 +163,60 @@ async function captureAccessibilityTree(url: string, testCode: string) {
   }
 }
 
-function extractActionsFromCode(code: string): string[] {
-  const actions: string[] = [];
+interface ParsedAction {
+  type: 'goto' | 'fill' | 'press' | 'click';
+  selector: string;
+  value: string;
+}
+
+function extractActionsFromCode(code: string): ParsedAction[] {
+  const actions: ParsedAction[] = [];
   const lines = code.split('\n');
 
   for (const line of lines) {
     const trimmed = line.trim();
-    // Extract lines that perform actions (goto, fill, click, type)
-    if (
-      trimmed.startsWith('await page.goto') ||
-      trimmed.startsWith('await search') ||
-      trimmed.includes('.fill(') ||
-      trimmed.includes('.click(') ||
-      trimmed.includes('.type(') ||
-      trimmed.includes('.press(')
-    ) {
-      // Convert variable references to page references
-      const converted = trimmed
-        .replace(/await\s+\w+\.(fill|click|type|press)\(/, (match) => {
-          // Keep as-is, we'll handle differently
-          return match;
-        });
-      actions.push(converted);
+
+    // page.goto('url')
+    const gotoMatch = /await\s+page\.goto\(['"]([^'"]+)['"]\)/.exec(trimmed);
+    if (gotoMatch) {
+      actions.push({ type: 'goto', selector: '', value: gotoMatch[1]! });
+      continue;
+    }
+
+    // page.getByXxx('...').fill('value') or variable.fill('value')
+    const fillMatch = /(?:page\.(getBy\w+)\(([^)]*(?:\{[^}]*\}[^)]*)?)\)|(\w+))\.fill\(['"]([^'"]+)['"]\)/.exec(trimmed);
+    if (fillMatch) {
+      const strategy = fillMatch[1];
+      const args = fillMatch[2];
+      if (strategy && args) {
+        actions.push({ type: 'fill', selector: `${strategy}(${args})`, value: fillMatch[4]! });
+      }
+      continue;
+    }
+
+    // page.getByXxx('...').press('key')
+    const pressMatch = /(?:page\.(getBy\w+)\(([^)]*(?:\{[^}]*\}[^)]*)?)\)|(\w+))\.press\(['"]([^'"]+)['"]\)/.exec(trimmed);
+    if (pressMatch) {
+      const strategy = pressMatch[1];
+      const args = pressMatch[2];
+      if (strategy && args) {
+        actions.push({ type: 'press', selector: `${strategy}(${args})`, value: pressMatch[4]! });
+      }
+      continue;
+    }
+
+    // page.getByXxx('...').click()
+    const clickMatch = /(?:page\.(getBy\w+)\(([^)]*(?:\{[^}]*\}[^)]*)?)\)|(\w+))\.click\(\)/.exec(trimmed);
+    if (clickMatch) {
+      const strategy = clickMatch[1];
+      const args = clickMatch[2];
+      if (strategy && args) {
+        actions.push({ type: 'click', selector: `${strategy}(${args})`, value: '' });
+      }
+      continue;
     }
   }
+
   return actions;
 }
 
