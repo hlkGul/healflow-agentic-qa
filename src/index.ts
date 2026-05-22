@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import { buildWorkflow } from './graph/workflow.js';
 import { generateStepDefinitions } from './utils/step-generator.js';
 import type { TestIntent } from './types/index.js';

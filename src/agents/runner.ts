@@ -83,17 +83,21 @@ function executePlaywrightTest(testFilePath: string): ExecutionResult {
       stderr: '',
     };
   } catch (err: unknown) {
-    const execError = err as { stdout?: string; stderr?: string; message?: string };
+    const execError = err as { stdout?: string; stderr?: string; message?: string; output?: (string | null)[] };
+    const stdout = execError.stdout ?? '';
+    const stderr = execError.stderr ?? '';
+    // Playwright outputs errors to stdout, not stderr
+    const errorOutput = stderr || stdout || (execError.message ?? 'Unknown error');
 
     return {
       success: false,
       duration: Date.now() - startTime,
-      stdout: execError.stdout ?? '',
-      stderr: execError.stderr ?? execError.message ?? 'Unknown error',
+      stdout,
+      stderr: errorOutput,
       error: {
-        message: execError.stderr ?? execError.message ?? 'Test execution failed',
+        message: errorOutput,
         type: 'unknown',
-        stackTrace: execError.stderr ?? '',
+        stackTrace: errorOutput,
       },
     };
   }

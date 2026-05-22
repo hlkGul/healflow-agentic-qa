@@ -10,11 +10,11 @@ const HEALER_SYSTEM_PROMPT = `You are a Playwright Locator Healer agent. A test 
 
 STRICT RULES:
 1. ONLY suggest Playwright user-facing locators:
-   - getByRole('role', { name: 'text' })
-   - getByText('text')
-   - getByLabel('label')
-   - getByPlaceholder('placeholder')
-   - getByTestId('testid')
+   - page.getByRole('role', { name: 'text' })
+   - page.getByText('text')
+   - page.getByLabel('label')
+   - page.getByPlaceholder('placeholder')
+   - page.getByTestId('testid')
 
 2. NEVER suggest XPath or CSS selectors
 
@@ -22,12 +22,19 @@ STRICT RULES:
 
 4. Consider the healing history — avoid suggesting locators that failed before
 
+5. The "value" field must contain ONLY the arguments inside the parentheses.
+   Examples:
+   - strategy: "getByRole", value: "'link', { name: 'Elbise' }"
+   - strategy: "getByText", value: "'Sonuçlar'"
+   - strategy: "getByPlaceholder", value: "'Ara'"
+   DO NOT repeat the strategy name in the value field.
+
 OUTPUT SCHEMA:
 {
   "suggestedLocator": {
     "description": "human-readable description of the element",
     "strategy": "getByRole|getByText|getByLabel|getByPlaceholder|getByTestId",
-    "value": "the locator argument string, e.g. role('searchbox', { name: 'Ara' })",
+    "value": "ONLY the arguments — e.g. 'link', { name: 'Elbise' }",
     "line": 0
   },
   "reasoning": "why this locator should work based on the accessibility tree"
@@ -51,7 +58,7 @@ export async function healerAgent(state: GraphStateType): Promise<Partial<GraphS
   }
 
   // Get fresh accessibility tree from the target page
-  const a11ySnapshot = await captureAccessibilityTree(state.intent.targetUrl);
+  const a11ySnapshot = await captureAccessibilityTree(state.intent.targetUrl, generatedCode.code);
   const treeContext = truncateTree(a11ySnapshot.raw);
 
   // Get healing history for context
@@ -122,17 +129,63 @@ export async function healerAgent(state: GraphStateType): Promise<Partial<GraphS
   };
 }
 
-async function captureAccessibilityTree(url: string) {
+async function captureAccessibilityTree(url: string, testCode: string) {
   const browser = await chromium.launch({ headless: true });
   const page = await browser.newPage();
 
   try {
     await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 15000 });
+
+    // Try to execute test steps up to the failure point
+    // Extract actions before the failing assertion
+    const actionLines = extractActionsFromCode(testCode);
+    for (const action of actionLines) {
+      try {
+        await page.evaluate(() => {}); // no-op to keep connection alive
+        // Execute action by eval — simplified approach
+        const fn = new Function('page', `return (async () => { ${action} })();`);
+        await fn(page);
+      } catch {
+        // Stop at first failure — this is where we capture the tree
+        break;
+      }
+    }
+
+    // Small wait for any dynamic content to load
+    await page.waitForLoadState('domcontentloaded').catch(() => {});
+
     const snapshot = await getAccessibilitySnapshot(page);
     return snapshot;
   } finally {
     await browser.close();
   }
+}
+
+function extractActionsFromCode(code: string): string[] {
+  const actions: string[] = [];
+  const lines = code.split('\n');
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    // Extract lines that perform actions (goto, fill, click, type)
+    if (
+      trimmed.startsWith('await page.goto') ||
+      trimmed.startsWith('await search') ||
+      trimmed.includes('.fill(') ||
+      trimmed.includes('.click(') ||
+      trimmed.includes('.type(') ||
+      trimmed.includes('.press(')
+    ) {
+      // Convert variable references to page references
+      const converted = trimmed
+        .replace(/await\s+\w+\.(fill|click|type|press)\(/, (match) => {
+          // Keep as-is, we'll handle differently
+          return match;
+        });
+      actions.push(converted);
+    }
+  }
+  return actions;
 }
 
 function buildHealerPrompt(
@@ -143,19 +196,21 @@ function buildHealerPrompt(
 ): string {
   return `A Playwright test failed with a locator error. Suggest a fix.
 
-ERROR:
-${errorMessage}
+ERROR (first 500 chars):
+${errorMessage.slice(0, 500)}
 
 CURRENT TEST CODE:
 ${testCode}
 
-ACCESSIBILITY TREE OF THE PAGE:
+ACCESSIBILITY TREE OF THE PAGE (after navigation/actions completed):
 ${treeContext}
 
 HEALING HISTORY:
 ${historyContext}
 
-Suggest a new locator that will find the correct element.`;
+IMPORTANT: Look at what the test is trying to verify. Find an element in the accessibility tree that satisfies the test's intent. The element might have a different role/name than expected.
+
+Suggest a new locator that will find the correct element. Remember: value field = ONLY the arguments inside parentheses.`;
 }
 
 function applyLocatorFix(
@@ -163,25 +218,46 @@ function applyLocatorFix(
   errorMessage: string,
   newLocator: LocatorInfo
 ): string {
-  // Find the failing locator pattern in the error message
-  const locatorRegex = /\.(getByRole|getByText|getByLabel|getByPlaceholder|getByTestId)\(([^)]+)\)/;
-  const errorMatch = locatorRegex.exec(errorMessage);
+  // Extract the failing locator from Playwright's error output
+  // Format: "waiting for getByRole('heading', { name: 'elbise' })"
+  // or: "Locator: getByPlaceholder('Ne aramıştınız?')"
+  const patterns = [
+    /Locator:\s*(getByRole|getByText|getByLabel|getByPlaceholder|getByTestId)\(([^)]*(?:\{[^}]*\}[^)]*)?)\)/,
+    /waiting for (getByRole|getByText|getByLabel|getByPlaceholder|getByTestId)\(([^)]*(?:\{[^}]*\}[^)]*)?)\)/,
+  ];
 
-  if (errorMatch) {
-    const oldPattern = errorMatch[0];
-    const newPattern = `.${newLocator.strategy}(${newLocator.value})`;
-    return code.replace(oldPattern, newPattern);
+  for (const pattern of patterns) {
+    const match = pattern.exec(errorMessage);
+    if (match) {
+      const oldStrategy = match[1];
+      const oldValue = match[2];
+      const oldPattern = `.${oldStrategy}(${oldValue})`;
+      const newPattern = `.${newLocator.strategy}(${newLocator.value})`;
+
+      if (code.includes(oldPattern)) {
+        return code.replace(oldPattern, newPattern);
+      }
+
+      // Try with quotes normalized
+      const oldPatternAlt = `.${oldStrategy}('${oldValue?.replace(/'/g, '')}')`;
+      if (code.includes(oldPatternAlt)) {
+        return code.replace(oldPatternAlt, newPattern);
+      }
+    }
   }
 
-  // Fallback: if we can't find exact match, try replacing by line number
-  if (newLocator.line > 0) {
+  // Fallback: find the first locator that doesn't resolve (based on line from error)
+  const lineRegex = /(\d+)\s*\|/;
+  const lineMatch = lineRegex.exec(errorMessage);
+  if (lineMatch) {
+    const errorLine = parseInt(lineMatch[1]!, 10) - 1;
     const lines = code.split('\n');
-    const targetLine = lines[newLocator.line - 1];
-    if (targetLine) {
-      const lineMatch = locatorRegex.exec(targetLine);
-      if (lineMatch) {
+    if (lines[errorLine]) {
+      const locatorInLine = /\.(getByRole|getByText|getByLabel|getByPlaceholder|getByTestId)\([^)]*(?:\{[^}]*\}[^)]*)??\)/;
+      const m = locatorInLine.exec(lines[errorLine]!);
+      if (m) {
         const newPattern = `.${newLocator.strategy}(${newLocator.value})`;
-        lines[newLocator.line - 1] = targetLine.replace(lineMatch[0], newPattern);
+        lines[errorLine] = lines[errorLine]!.replace(m[0], newPattern);
         return lines.join('\n');
       }
     }

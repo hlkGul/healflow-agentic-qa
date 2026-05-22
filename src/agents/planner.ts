@@ -13,6 +13,8 @@ RULES:
 - Expected results should be observable outcomes a user would see
 - Keep steps minimal and focused on the stated intent
 - Preconditions should include the starting URL/state
+- For search actions: type the text, then press Enter (not click a button)
+- After any action that navigates to a new page, add a "wait_for" step for the new URL/page
 
 OUTPUT SCHEMA:
 {
@@ -21,9 +23,9 @@ OUTPUT SCHEMA:
   "steps": [
     {
       "order": 1,
-      "action": "navigate|click|type|verify|wait_for",
+      "action": "navigate|click|type|press_key|verify|wait_for",
       "target": "human-readable element description",
-      "value": "optional - text to type or expected value"
+      "value": "optional - text to type, key to press, or expected value"
     }
   ],
   "expectedResults": ["string - what should be true after all steps"]

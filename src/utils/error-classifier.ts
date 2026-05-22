@@ -13,8 +13,10 @@ const LOCATOR_PATTERNS = [
   /locator resolved to.*element/i,
   /no element matches locator/i,
   /element not found/i,
+  /element\(s\) not found/i,
   /getByRole|getByText|getByLabel|getByPlaceholder|getByTestId/,
   /Timeout.*waiting for/i,
+  /expect\(locator\)\.toBeVisible\(\) failed/i,
 ];
 
 const NAVIGATION_PATTERNS = [

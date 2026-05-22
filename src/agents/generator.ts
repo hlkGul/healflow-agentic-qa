@@ -30,6 +30,16 @@ STRICT RULES:
 
 6. Add a comment above each locator line: // Locator: <description>
 
+7. For search flows:
+   - After typing in a search input, use keyboard.press('Enter') to submit
+   - Do NOT look for a search button unless explicitly mentioned
+   - After submitting search, ALWAYS wait for navigation: await page.waitForURL(/pattern/)
+   - Then verify results on the NEW page (listing page), not the homepage
+
+8. After any action that triggers navigation, wait for the new page:
+   - await page.waitForURL(/expected-pattern/) or await page.waitForLoadState('networkidle')
+   - Then perform assertions on the loaded page
+
 OUTPUT: Only the TypeScript test code, no markdown fences, no explanation.`;
 
 export async function generatorAgent(state: GraphStateType): Promise<Partial<GraphStateType>> {

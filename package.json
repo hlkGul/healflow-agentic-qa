@@ -24,7 +24,9 @@
     "@cucumber/cucumber": "^12.9.0",
     "@playwright/test": "^1.60.0",
     "@types/node": "^25.9.1",
+    "dotenv": "^17.4.2",
     "ts-node": "^10.9.2",
+    "tsx": "^4.22.3",
     "typescript": "^6.0.3"
   },
   "dependencies": {
