@@ -9,18 +9,20 @@ Given('I navigate to the Modanisa homepage', async function () {
 
 When('I type {string} in the search input', async function (searchText: string) {
   const page: Page = this.page;
-  // Locator: search input
-  await page.getByPlaceholder('Ara').fill(searchText);
+  // Locator: search input (textbox with search-related placeholder)
+  const searchInput = page.getByRole('textbox', { name: /Ara|Search|Ürün/i });
+  await searchInput.fill(searchText);
 });
 
 When('I press {string} in the search input', async function (key: string) {
   const page: Page = this.page;
   // Locator: search input
-  await page.getByPlaceholder('Ara').press(key);
+  const searchInput = page.getByRole('textbox', { name: /Ara|Search|Ürün/i });
+  await searchInput.press(key);
 });
 
 Then('I should see search results for {string}', async function (searchTerm: string) {
   const page: Page = this.page;
-  await page.waitForURL(new RegExp(searchTerm));
+  await page.waitForURL(new RegExp(searchTerm), { timeout: 15000 });
   await expect(page).toHaveURL(new RegExp(searchTerm));
 });
