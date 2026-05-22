@@ -72,7 +72,7 @@ async function main() {
 function runCucumber(): { success: boolean; output: string } {
   try {
     const stdout = execSync(
-      `npx cucumber-js --import 'src/step-definitions/**/*.ts' features/`,
+      `node --import tsx node_modules/.bin/cucumber-js --import 'src/step-definitions/**/*.ts' features/`,
       {
         cwd: process.cwd(),
         timeout: 60_000,
