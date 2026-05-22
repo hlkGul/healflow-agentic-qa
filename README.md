@@ -2,10 +2,31 @@
 
 Self-healing test automation with Playwright, LangGraph, and Gemini Flash.
 
-## How It Works
+## Architecture
 
 ```
-"Modanisa'da elbise ara" → Planner → Generator → Runner ↔ Healer → ✅ Step Definitions
+┌─────────────────────────────────────────────────────────────┐
+│ LOCAL DEVELOPMENT                                           │
+│                                                             │
+│  "elbise ara" → Planner → Generator → Runner → Healer      │
+│                                          │                  │
+│                                          ▼                  │
+│                              features/*.feature             │
+│                              src/step-definitions/*.ts      │
+│                                          │                  │
+│                                     git commit              │
+└──────────────────────────────────────────┼──────────────────┘
+                                           │
+                                           ▼
+┌─────────────────────────────────────────────────────────────┐
+│ CI PIPELINE                                                 │
+│                                                             │
+│  Cucumber (features + step-definitions) → Pass? ✅ Done     │
+│                                         → Fail?            │
+│                                           → Healer → Fix   │
+│                                           → Re-run → ✅    │
+│                                           → Auto-commit    │
+└─────────────────────────────────────────────────────────────┘
 ```
 
 1. **Planner Agent** — Converts natural language intent to acceptance criteria
@@ -25,52 +46,34 @@ cp .env.example .env
 
 # Install Playwright browsers
 npx playwright install chromium
+
+# Run existing tests (Cucumber)
+npm test
 ```
 
 ## Usage
 
-### Mode 1: Natural Language Intent
-
-Doğal dille test senaryosu ver, tüm pipeline çalışır:
+### Run Tests (Cucumber)
 
 ```bash
-npx tsx src/index.ts "Search for elbise and verify results appear"
-npx tsx src/index.ts "Modanisa'da elbise ara ve sonuçları doğrula"
-npx tsx src/index.ts "Add a product to cart" "https://www.modanisa.com"
+npm test                         # Run all feature tests
+npm run test:ci                  # Run with self-healing (CI mode)
 ```
 
-### Mode 2: From Criteria File
+### Generate New Tests
 
-Jira task'ından veya manuel yazılmış bir criteria dosyasını işaret et. Planner atlanır, direkt Generator'a gider:
-
+From natural language:
 ```bash
-npx tsx src/index.ts --file criteria/search-elbise.md
-npx tsx src/index.ts --file criteria/my-jira-task.md
+npm run generate -- "Search for elbise and verify results"
+npm run generate -- "Modanisa'da elbise ara ve sonuçları doğrula"
 ```
 
-**Criteria dosyası formatı:**
-
-```markdown
-# Test Title
-
-> Target: https://www.modanisa.com
-
-## Preconditions
-- User is on the homepage
-
-## Steps
-1. **navigate** → homepage (value: "https://www.modanisa.com")
-2. **type** → search input (value: "elbise")
-3. **press_key** → search input (value: "Enter")
-4. **wait_for** → results page (value: "/elbise")
-
-## Expected Results
-- ✅ Search results are displayed
+From criteria file (skip planner):
+```bash
+npm run generate -- --file criteria/search-elbise.md
 ```
 
 ### Healer Demo
-
-Bozuk locator ile self-healing davranışını test et:
 
 ```bash
 npx tsx src/test-healer.ts

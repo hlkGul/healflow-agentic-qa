@@ -45,7 +45,7 @@ jobs:
       - name: Install Playwright browsers
         run: npx playwright install chromium --with-deps
 
-      - name: Run existing tests (with self-healing)
+      - name: Run Cucumber tests (with self-healing)
         run: npx tsx src/ci-runner.ts
 
       - name: Commit healed locators
@@ -57,7 +57,7 @@ jobs:
           if git diff --quiet; then
             echo "No changes to commit"
           else
-            git add tests/generated/ healing-history.json
+            git add src/step-definitions/ healing-history.json
             git commit -m "fix(auto): self-healed locators via CI pipeline
 
           Locators were automatically fixed by the Healer agent.
@@ -74,7 +74,8 @@ jobs:
         with:
           name: test-artifacts
           path: |
-            tests/generated/
+            src/step-definitions/
+            features/
             healing-history.json
-            test-results/
+            cucumber-report.html
           retention-days: 7

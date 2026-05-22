@@ -10,17 +10,9 @@ import { saveHealingRecord, formatHistoryContext } from './utils/healing-registr
 import type { HealingRecord, LocatorInfo } from './types/index.js';
 
 const MAX_HEAL_RETRIES = 3;
-const TEST_DIR = resolve(process.cwd(), 'tests', 'generated');
+const STEPS_DIR = resolve(process.cwd(), 'src', 'step-definitions');
 
-interface TestResult {
-  file: string;
-  passed: boolean;
-  healed: boolean;
-  healAttempts: number;
-  error?: string;
-}
-
-const HEALER_PROMPT = `You are a Playwright Locator Healer. A test failed because a locator could not find an element. Suggest a fix.
+const HEALER_PROMPT = `You are a Playwright Locator Healer. A Cucumber step definition test failed because a locator could not find an element. Suggest a fix.
 
 RULES:
 1. ONLY suggest user-facing locators: getByRole, getByText, getByLabel, getByPlaceholder, getByTestId
@@ -40,114 +32,47 @@ OUTPUT JSON:
 }`;
 
 async function main() {
-  console.log('🔄 CI Pipeline: Run existing tests + self-heal');
+  console.log('🔄 CI Pipeline: Run Cucumber tests + self-heal');
   console.log('═'.repeat(60));
 
-  const testFiles = getTestFiles();
-  if (testFiles.length === 0) {
-    console.log('⚠️  No test files found in tests/generated/');
-    process.exit(0);
-  }
-
-  console.log(`📂 Found ${testFiles.length} test file(s)`);
-  const results: TestResult[] = [];
-  let anyHealed = false;
-
-  for (const file of testFiles) {
-    console.log(`\n▶️  Running: ${file}`);
-    const result = await runAndHeal(file);
-    results.push(result);
-    if (result.healed) anyHealed = true;
-  }
-
-  // Summary
-  console.log('\n' + '═'.repeat(60));
-  console.log('📊 PIPELINE RESULTS');
-  console.log('═'.repeat(60));
-
-  const passed = results.filter((r) => r.passed).length;
-  const failed = results.filter((r) => !r.passed).length;
-  const healed = results.filter((r) => r.healed).length;
-
-  console.log(`  ✅ Passed: ${passed}`);
-  console.log(`  ❌ Failed: ${failed}`);
-  console.log(`  🔧 Healed: ${healed}`);
-
-  if (anyHealed) {
-    console.log('\n🔧 Tests were healed. Changes committed.');
-  }
-
-  // Exit with failure if any test still fails
-  if (failed > 0) {
-    process.exit(1);
-  }
-}
-
-function getTestFiles(): string[] {
-  if (!existsSync(TEST_DIR)) return [];
-  return readdirSync(TEST_DIR)
-    .filter((f) => f.endsWith('.spec.ts'))
-    .map((f) => join(TEST_DIR, f));
-}
-
-async function runAndHeal(filePath: string): Promise<TestResult> {
   for (let attempt = 0; attempt <= MAX_HEAL_RETRIES; attempt++) {
-    const { success, stdout, stderr } = runTest(filePath);
+    const { success, output } = runCucumber();
 
     if (success) {
-      return {
-        file: filePath,
-        passed: true,
-        healed: attempt > 0,
-        healAttempts: attempt,
-      };
+      if (attempt > 0) {
+        console.log(`\n✅ Tests healed and passing (after ${attempt} heal attempt(s))`);
+      } else {
+        console.log('\n✅ All Cucumber tests passing');
+      }
+      return;
     }
 
-    const errorOutput = stderr || stdout;
-    const classification = classifyError(errorOutput, stderr);
+    const classification = classifyError(output, output);
 
     if (!classification.shouldHeal) {
-      console.log(`  ❌ Non-healable error: ${classification.type}`);
-      return {
-        file: filePath,
-        passed: false,
-        healed: false,
-        healAttempts: attempt,
-        error: classification.message,
-      };
+      console.log(`\n❌ Non-healable error: ${classification.type}`);
+      console.log(classification.message);
+      process.exit(1);
     }
 
     if (attempt >= MAX_HEAL_RETRIES) {
-      console.log(`  ❌ Max heal retries reached`);
-      return {
-        file: filePath,
-        passed: false,
-        healed: false,
-        healAttempts: attempt,
-        error: classification.message,
-      };
+      console.log(`\n❌ Max heal retries (${MAX_HEAL_RETRIES}) reached`);
+      process.exit(1);
     }
 
-    console.log(`  🔧 Heal attempt ${attempt + 1}/${MAX_HEAL_RETRIES}...`);
-    const healed = await healTest(filePath, errorOutput);
+    console.log(`\n🔧 Heal attempt ${attempt + 1}/${MAX_HEAL_RETRIES}...`);
+    const healed = await healStepDefinitions(output);
     if (!healed) {
-      return {
-        file: filePath,
-        passed: false,
-        healed: false,
-        healAttempts: attempt + 1,
-        error: 'Healer could not fix the locator',
-      };
+      console.log('❌ Healer could not fix the issue');
+      process.exit(1);
     }
   }
-
-  return { file: filePath, passed: false, healed: false, healAttempts: MAX_HEAL_RETRIES };
 }
 
-function runTest(filePath: string): { success: boolean; stdout: string; stderr: string } {
+function runCucumber(): { success: boolean; output: string } {
   try {
     const stdout = execSync(
-      `npx playwright test "${filePath}" --reporter=line`,
+      `npx cucumber-js --import 'src/step-definitions/**/*.ts' features/`,
       {
         cwd: process.cwd(),
         timeout: 60_000,
@@ -155,35 +80,40 @@ function runTest(filePath: string): { success: boolean; stdout: string; stderr: 
         env: { ...process.env, FORCE_COLOR: '0' },
       }
     );
-    return { success: true, stdout, stderr: '' };
+    console.log(stdout);
+    return { success: true, output: stdout };
   } catch (err: unknown) {
     const e = err as { stdout?: string; stderr?: string };
-    return {
-      success: false,
-      stdout: e.stdout ?? '',
-      stderr: e.stderr ?? '',
-    };
+    const output = (e.stdout ?? '') + '\n' + (e.stderr ?? '');
+    console.log(output);
+    return { success: false, output };
   }
 }
 
-async function healTest(filePath: string, errorOutput: string): Promise<boolean> {
-  const code = readFileSync(filePath, 'utf-8');
+async function healStepDefinitions(errorOutput: string): Promise<boolean> {
+  // Find which step definition file has the broken locator
+  const stepFiles = getStepFiles();
+  if (stepFiles.length === 0) {
+    console.log('  ⚠️ No step definition files found');
+    return false;
+  }
 
-  // Get a11y tree from the target page
-  const urlMatch = /page\.goto\(['"]([^'"]+)['"]\)/.exec(code);
-  const url = urlMatch?.[1] ?? 'https://www.modanisa.com';
+  // Combine all step code for context
+  const allStepCode = stepFiles
+    .map((f) => `// File: ${f}\n${readFileSync(f, 'utf-8')}`)
+    .join('\n\n');
 
+  // Get a11y tree
   const browser = await chromium.launch({ headless: true });
   const page = await browser.newPage();
 
   try {
-    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 15000 });
+    await page.goto('https://www.modanisa.com', { waitUntil: 'domcontentloaded', timeout: 15000 });
     const snapshot = await getAccessibilitySnapshot(page);
     const treeContext = truncateTree(snapshot.raw);
-
     const historyContext = formatHistoryContext('unknown element');
 
-    const userPrompt = `ERROR:\n${errorOutput.slice(0, 500)}\n\nTEST CODE:\n${code}\n\nACCESSIBILITY TREE:\n${treeContext}\n\nHEALING HISTORY:\n${historyContext}`;
+    const userPrompt = `ERROR:\n${errorOutput.slice(0, 800)}\n\nSTEP DEFINITION CODE:\n${allStepCode}\n\nACCESSIBILITY TREE:\n${treeContext}\n\nHEALING HISTORY:\n${historyContext}`;
 
     const suggestion = await callGeminiWithJson<{ suggestedLocator: LocatorInfo; reasoning: string }>(
       HEALER_PROMPT,
@@ -191,34 +121,45 @@ async function healTest(filePath: string, errorOutput: string): Promise<boolean>
       { maxTokens: 1024, temperature: 0.1 }
     );
 
-    // Apply fix
-    const fixedCode = applyFix(code, errorOutput, suggestion.suggestedLocator);
-    if (fixedCode === code) {
-      console.log(`    ⚠️ Could not apply fix`);
-      return false;
+    // Apply fix to step definitions
+    let fixed = false;
+    for (const file of stepFiles) {
+      const code = readFileSync(file, 'utf-8');
+      const fixedCode = applyFix(code, errorOutput, suggestion.suggestedLocator);
+      if (fixedCode !== code) {
+        writeFileSync(file, fixedCode, 'utf-8');
+        console.log(`  ✅ Fixed: ${file}`);
+        console.log(`  📝 ${suggestion.suggestedLocator.strategy}(${suggestion.suggestedLocator.value})`);
+        console.log(`  💡 ${suggestion.reasoning}`);
+        fixed = true;
+
+        // Save healing record
+        const record: HealingRecord = {
+          id: `heal-ci-${Date.now()}`,
+          timestamp: new Date().toISOString(),
+          element: suggestion.suggestedLocator.description,
+          originalLocator: { description: 'broken', strategy: 'getByRole', value: 'unknown', line: 0 },
+          healedLocator: suggestion.suggestedLocator,
+          reason: suggestion.reasoning,
+          success: false,
+          accessibilityContext: treeContext.slice(0, 300),
+        };
+        saveHealingRecord(record);
+        break;
+      }
     }
 
-    writeFileSync(filePath, fixedCode, 'utf-8');
-    console.log(`    ✅ Applied: ${suggestion.suggestedLocator.strategy}(${suggestion.suggestedLocator.value})`);
-    console.log(`    💡 ${suggestion.reasoning}`);
-
-    // Save to healing history
-    const record: HealingRecord = {
-      id: `heal-ci-${Date.now()}`,
-      timestamp: new Date().toISOString(),
-      element: suggestion.suggestedLocator.description,
-      originalLocator: { description: 'broken', strategy: 'getByRole', value: 'unknown', line: 0 },
-      healedLocator: suggestion.suggestedLocator,
-      reason: suggestion.reasoning,
-      success: false,
-      accessibilityContext: treeContext.slice(0, 300),
-    };
-    saveHealingRecord(record);
-
-    return true;
+    return fixed;
   } finally {
     await browser.close();
   }
+}
+
+function getStepFiles(): string[] {
+  if (!existsSync(STEPS_DIR)) return [];
+  return readdirSync(STEPS_DIR)
+    .filter((f) => f.endsWith('.steps.ts'))
+    .map((f) => join(STEPS_DIR, f));
 }
 
 function applyFix(code: string, errorMessage: string, newLocator: LocatorInfo): string {

@@ -4,9 +4,10 @@
   "description": "Self-healing agentic QA workflows with Playwright + LangGraph + Gemini",
   "scripts": {
     "build": "tsc",
-    "start": "ts-node src/index.ts",
-    "test": "npx playwright test",
-    "test:cucumber": "cucumber-js"
+    "start": "tsx src/index.ts",
+    "test": "cucumber-js --import 'src/step-definitions/**/*.ts' features/",
+    "test:ci": "tsx src/ci-runner.ts",
+    "generate": "tsx src/index.ts"
   },
   "repository": {
     "type": "git",
