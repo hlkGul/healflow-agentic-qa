@@ -5,7 +5,7 @@
   "scripts": {
     "build": "tsc",
     "start": "tsx src/index.ts",
-    "test": "node --import tsx node_modules/.bin/cucumber-js --import 'src/step-definitions/**/*.ts' features/",
+    "test": "node --import tsx node_modules/.bin/cucumber-js --import 'src/step-definitions/**/*.ts' --import 'src/support/**/*.ts' features/",
     "test:ci": "tsx src/ci-runner.ts",
     "generate": "tsx src/index.ts"
   },
