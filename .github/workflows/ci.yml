@@ -24,7 +24,7 @@ jobs:
         run: npx tsc --noEmit
 
   e2e-test:
-    name: E2E Test (Self-Healing)
+    name: E2E Tests + Self-Healing
     runs-on: ubuntu-latest
     needs: type-check
     env:
@@ -32,6 +32,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - uses: actions/setup-node@v4
         with:
@@ -43,30 +45,36 @@ jobs:
       - name: Install Playwright browsers
         run: npx playwright install chromium --with-deps
 
-      - name: Run E2E test from criteria file
-        run: npx tsx src/index.ts --file criteria/search-elbise.md
+      - name: Run existing tests (with self-healing)
+        run: npx tsx src/ci-runner.ts
 
-      - name: Verify generated artifacts
+      - name: Commit healed locators
+        if: success() || failure()
         run: |
-          echo "=== Generated Test ==="
-          cat tests/generated/*.spec.ts
-          echo ""
-          echo "=== Feature File ==="
-          cat features/*.feature
-          echo ""
-          echo "=== Step Definitions ==="
-          cat src/step-definitions/*.ts
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          if git diff --quiet; then
+            echo "No changes to commit"
+          else
+            git add tests/generated/ healing-history.json
+            git commit -m "fix(auto): self-healed locators via CI pipeline
 
-      - name: Upload test results
+          Locators were automatically fixed by the Healer agent.
+          See healing-history.json for details.
+
+          Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>"
+            git push
+            echo "✅ Healed locators committed and pushed"
+          fi
+
+      - name: Upload artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: test-artifacts
           path: |
             tests/generated/
-            features/
-            src/step-definitions/
-            criteria/
             healing-history.json
             test-results/
           retention-days: 7
