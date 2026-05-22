@@ -23,6 +23,21 @@ Before(async function () {
   ]);
 
   page = await context.newPage();
+
+  // Auto-dismiss popups whenever they appear during any test step
+  await page.addLocatorHandler(
+    page.locator('#CybotCookiebotDialogBodyLevelButtonLevelOptinAllowAll'),
+    async () => {
+      await page.locator('#CybotCookiebotDialogBodyLevelButtonLevelOptinAllowAll').click();
+    }
+  );
+  await page.addLocatorHandler(
+    page.locator('.welcomePopupInfo-active'),
+    async () => {
+      await page.locator('.welcomePopupInfo-active').getByText('Continue Shopping').click();
+    }
+  );
+
   this.page = page;
 });
 
