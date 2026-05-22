@@ -219,12 +219,12 @@ function applyLocatorFix(
   newLocator: LocatorInfo
 ): string {
   // Extract the failing locator from Playwright's error output
-  // Format: "waiting for getByRole('heading', { name: 'elbise' })"
-  // or: "Locator: getByPlaceholder('Ne aramıştınız?')"
   const patterns = [
     /Locator:\s*(getByRole|getByText|getByLabel|getByPlaceholder|getByTestId)\(([^)]*(?:\{[^}]*\}[^)]*)?)\)/,
     /waiting for (getByRole|getByText|getByLabel|getByPlaceholder|getByTestId)\(([^)]*(?:\{[^}]*\}[^)]*)?)\)/,
   ];
+
+  const newPattern = `.${newLocator.strategy}(${newLocator.value})`;
 
   for (const pattern of patterns) {
     const match = pattern.exec(errorMessage);
@@ -232,22 +232,22 @@ function applyLocatorFix(
       const oldStrategy = match[1];
       const oldValue = match[2];
       const oldPattern = `.${oldStrategy}(${oldValue})`;
-      const newPattern = `.${newLocator.strategy}(${newLocator.value})`;
 
+      // Replace ALL occurrences of the broken locator
       if (code.includes(oldPattern)) {
-        return code.replace(oldPattern, newPattern);
+        return code.replaceAll(oldPattern, newPattern);
       }
 
       // Try with quotes normalized
       const oldPatternAlt = `.${oldStrategy}('${oldValue?.replace(/'/g, '')}')`;
       if (code.includes(oldPatternAlt)) {
-        return code.replace(oldPatternAlt, newPattern);
+        return code.replaceAll(oldPatternAlt, newPattern);
       }
     }
   }
 
-  // Fallback: find the first locator that doesn't resolve (based on line from error)
-  const lineRegex = /(\d+)\s*\|/;
+  // Fallback: find the failing line from error output and fix it
+  const lineRegex = />\s*(\d+)\s*\|/;
   const lineMatch = lineRegex.exec(errorMessage);
   if (lineMatch) {
     const errorLine = parseInt(lineMatch[1]!, 10) - 1;
@@ -256,7 +256,6 @@ function applyLocatorFix(
       const locatorInLine = /\.(getByRole|getByText|getByLabel|getByPlaceholder|getByTestId)\([^)]*(?:\{[^}]*\}[^)]*)??\)/;
       const m = locatorInLine.exec(lines[errorLine]!);
       if (m) {
-        const newPattern = `.${newLocator.strategy}(${newLocator.value})`;
         lines[errorLine] = lines[errorLine]!.replace(m[0], newPattern);
         return lines.join('\n');
       }
