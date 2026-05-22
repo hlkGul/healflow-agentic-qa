@@ -18,5 +18,5 @@
     "sourceMap": true
   },
   "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist", "tests", "features"]
+  "exclude": ["node_modules", "dist", "tests", "features", "src/step-definitions"]
 }

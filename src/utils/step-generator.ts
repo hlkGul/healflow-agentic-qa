@@ -43,7 +43,7 @@ Expected: ${criteria.expectedResults.join(', ')}`;
 
   // Write feature file
   const featureDir = resolve(process.cwd(), 'features');
-  const stepsDir = resolve(process.cwd(), 'features', 'step-definitions');
+  const stepsDir = resolve(process.cwd(), 'src', 'step-definitions');
 
   if (!existsSync(featureDir)) mkdirSync(featureDir, { recursive: true });
   if (!existsSync(stepsDir)) mkdirSync(stepsDir, { recursive: true });
