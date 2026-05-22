@@ -1,4 +1,5 @@
 import { buildWorkflow } from './graph/workflow.js';
+import { generateStepDefinitions } from './utils/step-generator.js';
 import type { TestIntent } from './types/index.js';
 
 export async function runAgenticTest(userMessage: string, targetUrl: string) {
@@ -30,6 +31,21 @@ export async function runAgenticTest(userMessage: string, targetUrl: string) {
     console.log(`\n🔧 Healing Attempts: ${result.healingAttempts.length}`);
     for (const attempt of result.healingAttempts) {
       console.log(`  #${attempt.attemptNumber}: ${attempt.suggestedLocator.strategy}('${attempt.suggestedLocator.value}') — ${attempt.reasoning}`);
+    }
+  }
+
+  // Generate step definitions on success
+  if (result.phase === 'success' && result.criteria && result.generatedCode) {
+    console.log('\n📝 Generating Gherkin step definitions...');
+    try {
+      const { featurePath, stepsPath } = await generateStepDefinitions(
+        result.criteria,
+        result.generatedCode
+      );
+      console.log(`✅ Feature: ${featurePath}`);
+      console.log(`✅ Steps: ${stepsPath}`);
+    } catch (err) {
+      console.warn('⚠️ Step definition generation failed:', err);
     }
   }
 
