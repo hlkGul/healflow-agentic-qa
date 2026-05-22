@@ -1,1 +1,62 @@
-[]
+[
+  {
+    "id": "heal-1779453909724",
+    "timestamp": "2026-05-22T12:45:09.724Z",
+    "element": "unknown element",
+    "originalLocator": {
+      "description": "unknown element",
+      "strategy": "getByRole",
+      "value": "unknown",
+      "line": 0
+    },
+    "healedLocator": {
+      "description": "Find the search input by its label",
+      "strategy": "getByLabel",
+      "value": "'Ürün, Marka veya Kategorileri Arayın'",
+      "line": 5
+    },
+    "reason": "The accessibility tree shows a textbox with the label 'Ürün, Marka veya Kategorileri Arayın'. This is likely the search input field the test is trying to interact with. The original locator used the placeholder text, which might be unreliable. Using the label is a more robust approach.",
+    "success": false,
+    "accessibilityContext": "- dialog \"This website uses cookies\":\n  - img \"logo\"\n  - link \"Cookiebot by Usercentrics - opens in a new window\":\n    - /url: https://www.cookiebot.com/en/what-is-behind-powered-by-cookiebot/?utm_source=banner_cb&utm_medium=referral&utm_content=v2\n  - tabpanel \"Consent\":\n    - heading \"This website uses cookies\" [level=2]\n    - text: We use cookies to personalise content and ads, to provide social media features and to analyse our traffic. We also share information about your use of our site wi"
+  },
+  {
+    "id": "heal-1779453961930",
+    "timestamp": "2026-05-22T12:46:01.930Z",
+    "element": "unknown element",
+    "originalLocator": {
+      "description": "unknown element",
+      "strategy": "getByRole",
+      "value": "unknown",
+      "line": 0
+    },
+    "healedLocator": {
+      "description": "textbox with label 'Ürün, Marka veya Kategorileri Arayın'",
+      "strategy": "getByRole",
+      "value": "'textbox', { name: 'Ürün, Marka veya Kategorileri Arayın' }",
+      "line": 5
+    },
+    "reason": "The accessibility tree shows a textbox with the exact label 'Ürün, Marka veya Kategorileri Arayın'. Using getByRole('textbox', { name: '...' }) is more specific and reliable than getByLabel.",
+    "success": false,
+    "accessibilityContext": "- dialog \"This website uses cookies\":\n  - img \"logo\"\n  - link \"Cookiebot by Usercentrics - opens in a new window\":\n    - /url: https://www.cookiebot.com/en/what-is-behind-powered-by-cookiebot/?utm_source=banner_cb&utm_medium=referral&utm_content=v2\n  - tabpanel \"Consent\":\n    - heading \"This website uses cookies\" [level=2]\n    - text: We use cookies to personalise content and ads, to provide social media features and to analyse our traffic. We also share information about your use of our site wi"
+  },
+  {
+    "id": "heal-1779454017048",
+    "timestamp": "2026-05-22T12:46:57.049Z",
+    "element": "unknown element",
+    "originalLocator": {
+      "description": "unknown element",
+      "strategy": "getByRole",
+      "value": "unknown",
+      "line": 0
+    },
+    "healedLocator": {
+      "description": "Find the 'Ara' button next to the search box and click it.",
+      "strategy": "getByRole",
+      "value": "'button', { name: 'Ara' }",
+      "line": 10
+    },
+    "reason": "The test fills the search box and then presses 'Enter' on the placeholder. Instead of pressing enter, we can click the 'Ara' (Search) button. The accessibility tree shows a button with the name 'Ara' which is next to the search box.",
+    "success": false,
+    "accessibilityContext": "- dialog \"This website uses cookies\":\n  - img \"logo\"\n  - link \"Cookiebot by Usercentrics - opens in a new window\":\n    - /url: https://www.cookiebot.com/en/what-is-behind-powered-by-cookiebot/?utm_source=banner_cb&utm_medium=referral&utm_content=v2\n  - tabpanel \"Consent\":\n    - heading \"This website uses cookies\" [level=2]\n    - text: We use cookies to personalise content and ads, to provide social media features and to analyse our traffic. We also share information about your use of our site wi"
+  }
+]
