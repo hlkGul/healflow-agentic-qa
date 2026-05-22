@@ -1,6 +1,5 @@
-# Search for 'elbise' on Modanisa and verify results
+# Search for elbise on Modanisa
 
-> Original intent: "Modanisa'da elbise ara ve sonuçların geldiğini doğrula"
 > Target: https://www.modanisa.com
 
 ## Preconditions
