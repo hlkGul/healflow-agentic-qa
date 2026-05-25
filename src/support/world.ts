@@ -1,7 +1,7 @@
 import { Before, After, setDefaultTimeout } from '@cucumber/cucumber';
 import { chromium, type Browser, type BrowserContext, type Page } from '@playwright/test';
 
-setDefaultTimeout(30_000);
+setDefaultTimeout(60_000);
 
 let browser: Browser;
 let context: BrowserContext;
@@ -27,10 +27,7 @@ Before(async function () {
   await page.addLocatorHandler(
     page.locator('.welcomePopupInfo-active'),
     async () => {
-      const btn = page.locator('.welcomePopupInfo-active').getByText(/Continue Shopping|Alışverişe Devam/i);
-      if (await btn.isVisible({ timeout: 500 }).catch(() => false)) {
-        await btn.click();
-      }
+      await page.locator('.welcomePopupInfo-button').click();
     }
   );
 

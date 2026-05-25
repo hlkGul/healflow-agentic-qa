@@ -29,9 +29,11 @@ const LANGUAGE_MAP: Record<string, string> = {
   en: 'EN',
   tr: 'TR',
   ar: 'AR',
+  de: 'DE',
   english: 'EN',
   turkish: 'TR',
   arabic: 'AR',
+  german: 'DE',
 };
 
 export function resolveCountry(name: string): LocaleConfig {

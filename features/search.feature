@@ -1,7 +1,13 @@
 Feature: Search on Modanisa
 
-  Scenario: Search for 'dress' and verify results
-    Given I open the site in "USA" country with "en" language
-    When I type "dress" in the search input
+  Scenario Outline: Search for '<term>' in <country> (<language>)
+    Given I open the site in "<country>" country with "<language>" language
+    When I type "<term>" in the search input
     And I press "Enter" in the search input
-    Then I should see search results for "dress"
+    Then I should see search results for "<term>"
+
+    Examples:
+      | country | language | term   |
+      | USA     | en       | dress  |
+      | Turkey  | tr       | elbise |
+      | Germany | de       | Hosen  |
