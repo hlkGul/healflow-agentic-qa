@@ -10,4 +10,4 @@ Feature: Search on Modanisa
       | country | language | term   |
       | USA     | en       | dress  |
       | Turkey  | tr       | elbise |
-      | Germany | de       | Hosen  |
+

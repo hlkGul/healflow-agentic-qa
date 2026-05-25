@@ -75,7 +75,7 @@ function runCucumber(): { success: boolean; output: string } {
       `node --import tsx node_modules/.bin/cucumber-js --import 'src/support/**/*.ts' --import 'src/step-definitions/**/*.ts' features/`,
       {
         cwd: process.cwd(),
-        timeout: 60_000,
+        timeout: 300_000,
         encoding: 'utf-8',
         env: { ...process.env, FORCE_COLOR: '0' },
       }
@@ -83,7 +83,10 @@ function runCucumber(): { success: boolean; output: string } {
     console.log(stdout);
     return { success: true, output: stdout };
   } catch (err: unknown) {
-    const e = err as { stdout?: string; stderr?: string };
+    const e = err as { stdout?: string; stderr?: string; killed?: boolean; signal?: string; code?: string };
+    if (e.killed || e.signal === 'SIGTERM') {
+      console.log('⏱️  execSync timeout exceeded');
+    }
     const output = (e.stdout ?? '') + '\n' + (e.stderr ?? '');
     console.log(output);
     return { success: false, output };

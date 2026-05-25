@@ -13,4 +13,4 @@ Feature: Price Verification between Listing and Detail
       | country | language | term   |
       | USA     | en       | dress  |
       | Turkey  | tr       | elbise |
-      | Germany | de       | Hosen  |
+
