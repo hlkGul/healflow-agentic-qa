@@ -1,6 +1,6 @@
 import { writeFileSync, readdirSync, unlinkSync, existsSync, mkdirSync } from 'node:fs';
 import { resolve, join } from 'node:path';
-import { callGemini } from '../utils/gemini-client.js';
+import { callLLM } from '../utils/llm-client.js';
 import type { AcceptanceCriteria, GeneratedTestCode, LocatorInfo } from '../types/index.js';
 import type { GraphStateType } from '../graph/state.js';
 
@@ -53,7 +53,7 @@ export async function generatorAgent(state: GraphStateType): Promise<Partial<Gra
   }
 
   const userPrompt = buildGeneratorPrompt(criteria, intent.targetUrl);
-  const response = await callGemini(GENERATOR_SYSTEM_PROMPT, userPrompt, {
+  const response = await callLLM(GENERATOR_SYSTEM_PROMPT, userPrompt, {
     maxTokens: 4096,
     temperature: 0.1,
   });

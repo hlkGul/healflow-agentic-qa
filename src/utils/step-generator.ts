@@ -1,6 +1,6 @@
 import { writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
-import { callGemini } from '../utils/gemini-client.js';
+import { callLLM } from '../utils/llm-client.js';
 import type { AcceptanceCriteria, GeneratedTestCode } from '../types/index.js';
 
 const STEP_GEN_PROMPT = `You are a Cucumber/Gherkin step definition generator. Given acceptance criteria and working Playwright test code, generate:
@@ -34,7 +34,7 @@ ACCEPTANCE CRITERIA:
 Steps: ${criteria.steps.map((s) => `${s.order}. ${s.action} → ${s.target}`).join('\n')}
 Expected: ${criteria.expectedResults.join(', ')}`;
 
-  const response = await callGemini(STEP_GEN_PROMPT, userPrompt, {
+  const response = await callLLM(STEP_GEN_PROMPT, userPrompt, {
     maxTokens: 4096,
     temperature: 0.1,
   });

@@ -27,16 +27,11 @@ async function withRetry<T>(fn: () => Promise<T>): Promise<T> {
   throw new Error('Unreachable');
 }
 
-export interface GeminiResponse {
-  text: string;
-  tokensUsed: number;
-}
-
-export async function callGemini(
+export async function callLLM(
   systemPrompt: string,
   userPrompt: string,
   options: { maxTokens?: number; temperature?: number } = {}
-): Promise<GeminiResponse> {
+): Promise<LLMResponse> {
   const { maxTokens = 4096, temperature = 0.2 } = options;
   const provider = getProvider();
 
@@ -45,7 +40,7 @@ export async function callGemini(
   });
 }
 
-export async function callGeminiWithJson<T>(
+export async function callLLMWithJson<T>(
   systemPrompt: string,
   userPrompt: string,
   options: { maxTokens?: number; temperature?: number } = {}

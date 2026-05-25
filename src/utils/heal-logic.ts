@@ -1,7 +1,7 @@
 import { readFileSync, writeFileSync, readdirSync, existsSync } from 'node:fs';
 import { resolve, join } from 'node:path';
 import { chromium } from '@playwright/test';
-import { callGeminiWithJson } from './gemini-client.js';
+import { callLLMWithJson } from './llm-client.js';
 import { getAccessibilitySnapshot, truncateTree } from './accessibility.js';
 import { saveHealingRecord, formatHistoryContext } from './healing-registry.js';
 import { setLocale } from '../support/locale.js';
@@ -82,7 +82,7 @@ export async function healFromError(errorOutput: string): Promise<HealResult> {
 
     const userPrompt = `ERROR:\n${errorOutput.slice(0, 1000)}\n\nSTEP DEFINITION CODE:\n${allStepCode}\n\nACCESSIBILITY TREE:\n${treeContext}\n\nHEALING HISTORY:\n${historyContext}`;
 
-    const suggestion = await callGeminiWithJson<{ suggestedLocator: LocatorInfo; reasoning: string }>(
+    const suggestion = await callLLMWithJson<{ suggestedLocator: LocatorInfo; reasoning: string }>(
       HEALER_PROMPT,
       userPrompt,
       { maxTokens: 1024, temperature: 0.1 }

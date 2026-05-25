@@ -1,6 +1,6 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { chromium } from '@playwright/test';
-import { callGeminiWithJson } from '../utils/gemini-client.js';
+import { callLLMWithJson } from '../utils/llm-client.js';
 import { getAccessibilitySnapshot, truncateTree } from '../utils/accessibility.js';
 import { saveHealingRecord, formatHistoryContext } from '../utils/healing-registry.js';
 import { applyLocatorFix } from '../utils/heal-logic.js';
@@ -74,7 +74,7 @@ export async function healerAgent(state: GraphStateType): Promise<Partial<GraphS
     historyContext
   );
 
-  const suggestion = await callGeminiWithJson<{ suggestedLocator: LocatorInfo; reasoning: string }>(
+  const suggestion = await callLLMWithJson<{ suggestedLocator: LocatorInfo; reasoning: string }>(
     HEALER_SYSTEM_PROMPT,
     userPrompt,
     { maxTokens: 1024, temperature: 0.1 }

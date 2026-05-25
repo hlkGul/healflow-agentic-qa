@@ -1,6 +1,6 @@
 import { writeFileSync, readdirSync, unlinkSync, existsSync, mkdirSync } from 'node:fs';
 import { resolve, join } from 'node:path';
-import { callGeminiWithJson } from '../utils/gemini-client.js';
+import { callLLMWithJson } from '../utils/llm-client.js';
 import type { AcceptanceCriteria, TestIntent } from '../types/index.js';
 import type { GraphStateType } from '../graph/state.js';
 
@@ -35,7 +35,7 @@ export async function plannerAgent(state: GraphStateType): Promise<Partial<Graph
   const { intent } = state;
 
   const userPrompt = buildUserPrompt(intent);
-  const criteria = await callGeminiWithJson<AcceptanceCriteria>(
+  const criteria = await callLLMWithJson<AcceptanceCriteria>(
     PLANNER_SYSTEM_PROMPT,
     userPrompt,
     { maxTokens: 2048, temperature: 0.1 }
