@@ -1,6 +1,8 @@
 # Opus-Based Agentic QA
 
-Self-healing test automation with Playwright, LangGraph, and Gemini Flash.
+Self-healing test automation framework with multi-provider LLM support, Playwright, and LangGraph orchestration.
+
+Target site: [modanisa.com](https://www.modanisa.com) — multi-locale (EN/TR/DE), multi-country e-commerce platform.
 
 ## Architecture
 
@@ -19,20 +21,25 @@ Self-healing test automation with Playwright, LangGraph, and Gemini Flash.
                                            │
                                            ▼
 ┌─────────────────────────────────────────────────────────────┐
-│ CI PIPELINE                                                 │
+│ CI PIPELINE (GitHub Actions)                                │
 │                                                             │
-│  Cucumber (features + step-definitions) → Pass? ✅ Done     │
-│                                         → Fail?            │
-│                                           → Healer → Fix   │
-│                                           → Re-run → ✅    │
-│                                           → Auto-commit    │
+│  Type Check → Cucumber Tests → Pass? ✅ Done                │
+│                               → Fail?                      │
+│                                 → Error Classification      │
+│                                 → Healer (ariaSnapshot)    │
+│                                 → Re-run → ✅              │
+│                                 → Auto-commit fix          │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-1. **Planner Agent** — Converts natural language intent to acceptance criteria
-2. **Generator Agent** — Produces Playwright test code (user-facing locators only)
-3. **Runner** — Executes the test, classifies errors
-4. **Healer Agent** — Fixes broken locators using accessibility tree context
+### Agents
+
+| Agent | Role | Input | Output |
+|-------|------|-------|--------|
+| **Planner** | Converts natural language intent to acceptance criteria | User sentence | Markdown criteria file |
+| **Generator** | Produces Playwright test code with user-facing locators | Criteria + a11y tree | Feature + step definitions |
+| **Runner** | Executes tests, classifies errors | Step definitions | Pass/fail + error type |
+| **Healer** | Fixes broken locators using ariaSnapshot context | Error + a11y snapshot | Updated locator code |
 
 ## Quick Start
 
@@ -40,24 +47,37 @@ Self-healing test automation with Playwright, LangGraph, and Gemini Flash.
 # Install dependencies
 npm install
 
-# Set your Gemini API key
+# Configure LLM provider (pick one)
 cp .env.example .env
-# Edit .env with your GEMINI_API_KEY
+# Edit .env — set GEMINI_API_KEY or OPENAI_API_KEY
 
 # Install Playwright browsers
 npx playwright install chromium
 
-# Run existing tests (Cucumber)
+# Run existing tests (headed locally)
 npm test
+
+# Run with self-healing (CI mode)
+npm run test:ci
 ```
+
+### Environment Variables
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `GEMINI_API_KEY` | One of these | Google Gemini API key |
+| `OPENAI_API_KEY` | One of these | OpenAI API key |
+| `LLM_PROVIDER` | No | Force provider: `gemini` or `openai` (auto-detected if not set) |
+
+Auto-detection priority: `LLM_PROVIDER` env → `GEMINI_API_KEY` present → `OPENAI_API_KEY` present.
 
 ## Usage
 
-### Run Tests (Cucumber)
+### Run Tests (Cucumber + BDD)
 
 ```bash
-npm test                         # Run all feature tests
-npm run test:ci                  # Run with self-healing (CI mode)
+npm test                         # All feature tests (headed in local)
+npm run test:ci                  # Self-healing CI mode (headless)
 ```
 
 ### Generate New Tests
@@ -73,37 +93,69 @@ From criteria file (skip planner):
 npm run generate -- --file criteria/search-elbise.md
 ```
 
-### Healer Demo
+### Multi-Locale Testing
 
-```bash
-npx tsx src/test-healer.ts
+Tests support parametric locale selection via Scenario Outline:
+
+```gherkin
+Given I open the site in "<country>" country with "<language>" language
+
+Examples:
+  | country | language | term   |
+  | USA     | en       | dress  |
+  | Turkey  | tr       | elbise |
 ```
+
+Supported countries: USA, Turkey, Germany, France, UK, UAE  
+Supported languages: en, tr, de, ar
 
 ## Design Principles
 
-- **User-facing locators only** — `getByRole`, `getByText`, `getByLabel`, `getByPlaceholder`
-- **No waitForTimeout** — web-first assertions only
-- **Accessibility tree context** — agents see a11y tree, not raw DOM
-- **Strict TypeScript** — no `any`, Playwright native types
-- **Healing registry** — JSON history of all locator fixes
-- **Auto-cleanup** — old generated files removed on each run
+- **User-facing locators only** — `getByRole`, `getByText`, `getByLabel`, `getByPlaceholder`, `getByTestId`
+- **No waitForTimeout** — web-first assertions and auto-waiting only
+- **AriaSnapshot context** — agents receive `page.locator('body').ariaSnapshot()`, not raw DOM
+- **Strict TypeScript** — no `any`, Playwright native types (`Page`, `Locator`, `BrowserContext`)
+- **Multi-provider LLM** — swap between Gemini and OpenAI via env variable
+- **Retry with backoff** — LLM calls retry on 429/503/500 with exponential backoff
+- **Healing registry** — JSON history of all locator fixes for learning context
+- **Intent-based model** — no Page Object Model; tests express user intent directly
 
 ## Project Structure
 
 ```
 src/
-├── agents/            # Planner, Generator, Runner, Healer
-├── graph/             # LangGraph state & workflow
-├── utils/             # Gemini client, a11y extractor, error classifier
-├── step-definitions/  # Generated Cucumber step definitions
-├── types/             # Shared TypeScript interfaces
-└── index.ts           # CLI entry point (intent & file modes)
+├── agents/              # Planner, Generator, Runner, Healer
+├── graph/               # LangGraph state machine & workflow
+├── utils/
+│   ├── llm/             # Multi-provider abstraction (Gemini, OpenAI)
+│   ├── llm-client.ts    # Unified callLLM / callLLMWithJson with retry
+│   ├── accessibility.ts # ariaSnapshot capture (primary) + deprecated API fallback
+│   ├── heal-logic.ts    # Shared healing logic (CI + agent)
+│   ├── healing-registry.ts  # Healing history read/write
+│   ├── error-classifier.ts  # Categorize errors (locator/timeout/network/unknown)
+│   └── step-generator.ts    # Step definition code generation
+├── support/
+│   ├── world.ts         # Cucumber hooks (Before/After, popup auto-dismiss)
+│   └── locale.ts        # Country/language cookie-based locale setter
+├── step-definitions/    # Cucumber step definitions
+├── types/               # Shared TypeScript interfaces
+├── ci-runner.ts         # CI self-healing orchestrator
+└── index.ts             # CLI entry point (intent & file modes)
 
-features/              # Generated Gherkin feature files
-tests/generated/       # Generated Playwright test files
-criteria/              # Acceptance criteria (markdown)
-healing-history.json   # Healing registry
+features/                # Gherkin feature files (Scenario Outlines)
+criteria/                # Acceptance criteria (markdown)
+healing-history.json     # Healing registry (auto-updated)
+.github/workflows/ci.yml # GitHub Actions pipeline
 ```
+
+## Self-Healing Flow
+
+1. **Error Classification** — Categorizes failure as `locator` / `timeout` / `network` / `unknown`
+2. **Context Capture** — Navigates to the failing page, captures `ariaSnapshot()`
+3. **LLM Healing** — Sends error + snapshot + healing history to LLM for locator suggestion
+4. **Apply Fix** — Replaces broken locator in step definition code
+5. **Re-run** — Executes test again; if passes → auto-commits the fix
+6. **Registry** — Records the healing attempt for future context
 
 ## Why Not Playwright's Built-in Test Agents?
 
@@ -121,14 +173,28 @@ Playwright v1.60+ introduces [Test Agents](https://playwright.dev/docs/test-agen
 
 **What we adopted from MCP:**
 
-- ✅ **AriaSnapshot** — We use `page.locator('body').ariaSnapshot()` (stable Playwright API) to capture structured accessibility context for our healer, which is the same snapshot approach MCP tools use internally.
+- ✅ **AriaSnapshot** — We use `page.locator('body').ariaSnapshot()` (stable Playwright API) to capture structured accessibility context for our healer — the same snapshot approach MCP tools use internally.
 
-**Future roadmap:**
-When `@playwright/mcp` reaches stable (1.x), we may integrate it as an alternative context provider for the healer agent, or use it to enable IDE-driven test generation alongside our autonomous CI flow.
+**Future roadmap:**  
+When `@playwright/mcp` reaches stable (1.x), we may integrate it as an alternative context provider for the healer, or use it to enable IDE-driven test generation alongside our autonomous CI flow.
 
 ## Tech Stack
 
-- Playwright + TypeScript
-- LangGraph.js (agent orchestration)
-- Multi-provider LLM (Gemini Flash / OpenAI — auto-detected from env)
-- Cucumber/Gherkin (BDD step definitions)
+| Layer | Technology |
+|-------|-----------|
+| Browser automation | Playwright 1.60+ (TypeScript) |
+| Agent orchestration | LangGraph.js |
+| LLM providers | Gemini Flash / OpenAI (pluggable) |
+| BDD framework | Cucumber.js + Gherkin |
+| CI/CD | GitHub Actions |
+| Locale management | Cookie-based (no IP dependency) |
+
+## CI Pipeline
+
+The GitHub Actions workflow (`.github/workflows/ci.yml`) runs on every push/PR to `main`:
+
+1. **Type Check** — `tsc --noEmit`
+2. **E2E Tests** — Cucumber tests with self-healing via `src/ci-runner.ts`
+3. **Auto-commit** — If healer fixes locators, changes are committed automatically
+
+Required secrets: `GEMINI_API_KEY` (or `OPENAI_API_KEY`)

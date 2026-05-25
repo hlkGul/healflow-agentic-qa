@@ -1,7 +1,7 @@
 {
   "name": "opus-based-agentic-qa",
   "version": "1.0.0",
-  "description": "Self-healing agentic QA workflows with Playwright + LangGraph + Gemini",
+  "description": "Self-healing agentic QA automation with Playwright + LangGraph + multi-provider LLM",
   "scripts": {
     "build": "tsc",
     "start": "tsx src/index.ts",
