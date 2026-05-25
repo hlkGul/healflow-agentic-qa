@@ -1,7 +1,7 @@
 Feature: Price Verification between Listing and Detail
 
   Scenario: Verify first product's prices match between listing and detail page
-    Given I navigate to the Modanisa homepage
+    Given I open the site in "USA" country with "en" language
     When I type "dress" in the search input
     And I press "Enter" in the search input
     Then I should see search results for "dress"
