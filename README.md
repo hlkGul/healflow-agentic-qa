@@ -105,9 +105,30 @@ criteria/              # Acceptance criteria (markdown)
 healing-history.json   # Healing registry
 ```
 
+## Why Not Playwright's Built-in Test Agents?
+
+Playwright v1.60+ introduces [Test Agents](https://playwright.dev/docs/test-agents) — MCP-based tool definitions for IDE-driven AI workflows (VS Code Copilot, Claude Code, etc.).
+
+**Why we don't use them:**
+
+| Aspect | Playwright Test Agents | Our Approach |
+|--------|----------------------|--------------|
+| Execution model | Interactive (IDE-driven) | Autonomous (CLI/CI) |
+| Orchestration | External AI tool decides | LangGraph state machine |
+| Healing | Manual via IDE prompts | Automatic retry loop |
+| CI/CD | Not designed for headless CI | Built for CI pipelines |
+| Maturity | `@playwright/mcp` is alpha (0.0.x) | Production-ready with stable APIs |
+
+**What we adopted from MCP:**
+
+- ✅ **AriaSnapshot** — We use `page.locator('body').ariaSnapshot()` (stable Playwright API) to capture structured accessibility context for our healer, which is the same snapshot approach MCP tools use internally.
+
+**Future roadmap:**
+When `@playwright/mcp` reaches stable (1.x), we may integrate it as an alternative context provider for the healer agent, or use it to enable IDE-driven test generation alongside our autonomous CI flow.
+
 ## Tech Stack
 
 - Playwright + TypeScript
 - LangGraph.js (agent orchestration)
-- Gemini 2.0 Flash (Google AI SDK)
+- Multi-provider LLM (Gemini Flash / OpenAI — auto-detected from env)
 - Cucumber/Gherkin (BDD step definitions)

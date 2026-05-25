@@ -1,7 +1,24 @@
 import type { Page } from '@playwright/test';
 import type { AccessibilitySnapshot, AccessibilityNode } from '../types/index.js';
 
+/**
+ * Captures page accessibility context using Playwright's ariaSnapshot (stable API).
+ * Falls back to deprecated page.accessibility.snapshot() if ariaSnapshot fails.
+ */
 export async function getAccessibilitySnapshot(page: Page): Promise<AccessibilitySnapshot> {
+  // Primary: Playwright ariaSnapshot (stable, structured YAML-like output)
+  try {
+    const ariaRaw = await page.locator('body').ariaSnapshot({ timeout: 10000 });
+    return {
+      tree: null,
+      raw: ariaRaw,
+      method: 'aria-snapshot',
+    };
+  } catch {
+    // Fallback below
+  }
+
+  // Fallback: deprecated accessibility API (still functional in Playwright 1.x)
   try {
     // @ts-expect-error: accessibility API is deprecated but functional
     const snapshot = await page.accessibility.snapshot();
@@ -15,24 +32,14 @@ export async function getAccessibilitySnapshot(page: Page): Promise<Accessibilit
       };
     }
   } catch {
-    // Fallback below
+    // Final fallback
   }
 
-  // Fallback: aria-snapshot approach using locator ariaSnapshot
-  try {
-    const ariaRaw = await page.locator('body').ariaSnapshot();
-    return {
-      tree: null,
-      raw: ariaRaw,
-      method: 'aria-snapshot',
-    };
-  } catch {
-    return {
-      tree: null,
-      raw: 'Unable to capture accessibility tree',
-      method: 'snapshot',
-    };
-  }
+  return {
+    tree: null,
+    raw: 'Unable to capture accessibility tree',
+    method: 'snapshot',
+  };
 }
 
 function normalizeNode(node: Record<string, unknown>): AccessibilityNode {
