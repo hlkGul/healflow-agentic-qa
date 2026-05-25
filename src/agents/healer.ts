@@ -3,6 +3,7 @@ import { chromium } from '@playwright/test';
 import { callGeminiWithJson } from '../utils/gemini-client.js';
 import { getAccessibilitySnapshot, truncateTree } from '../utils/accessibility.js';
 import { saveHealingRecord, formatHistoryContext } from '../utils/healing-registry.js';
+import { applyLocatorFix } from '../utils/heal-logic.js';
 import type { HealingAttempt, HealingRecord, LocatorInfo } from '../types/index.js';
 import type { GraphStateType } from '../graph/state.js';
 
@@ -245,54 +246,3 @@ IMPORTANT: Look at what the test is trying to verify. Find an element in the acc
 Suggest a new locator that will find the correct element. Remember: value field = ONLY the arguments inside parentheses.`;
 }
 
-function applyLocatorFix(
-  code: string,
-  errorMessage: string,
-  newLocator: LocatorInfo
-): string {
-  // Extract the failing locator from Playwright's error output
-  const patterns = [
-    /Locator:\s*(getByRole|getByText|getByLabel|getByPlaceholder|getByTestId)\(([^)]*(?:\{[^}]*\}[^)]*)?)\)/,
-    /waiting for (getByRole|getByText|getByLabel|getByPlaceholder|getByTestId)\(([^)]*(?:\{[^}]*\}[^)]*)?)\)/,
-  ];
-
-  const newPattern = `.${newLocator.strategy}(${newLocator.value})`;
-
-  for (const pattern of patterns) {
-    const match = pattern.exec(errorMessage);
-    if (match) {
-      const oldStrategy = match[1];
-      const oldValue = match[2];
-      const oldPattern = `.${oldStrategy}(${oldValue})`;
-
-      // Replace ALL occurrences of the broken locator
-      if (code.includes(oldPattern)) {
-        return code.replaceAll(oldPattern, newPattern);
-      }
-
-      // Try with quotes normalized
-      const oldPatternAlt = `.${oldStrategy}('${oldValue?.replace(/'/g, '')}')`;
-      if (code.includes(oldPatternAlt)) {
-        return code.replaceAll(oldPatternAlt, newPattern);
-      }
-    }
-  }
-
-  // Fallback: find the failing line from error output and fix it
-  const lineRegex = />\s*(\d+)\s*\|/;
-  const lineMatch = lineRegex.exec(errorMessage);
-  if (lineMatch) {
-    const errorLine = parseInt(lineMatch[1]!, 10) - 1;
-    const lines = code.split('\n');
-    if (lines[errorLine]) {
-      const locatorInLine = /\.(getByRole|getByText|getByLabel|getByPlaceholder|getByTestId)\([^)]*(?:\{[^}]*\}[^)]*)??\)/;
-      const m = locatorInLine.exec(lines[errorLine]!);
-      if (m) {
-        lines[errorLine] = lines[errorLine]!.replace(m[0], newPattern);
-        return lines.join('\n');
-      }
-    }
-  }
-
-  return code;
-}

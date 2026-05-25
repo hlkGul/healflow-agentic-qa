@@ -21,13 +21,27 @@ Before(async function () {
   await page.addLocatorHandler(
     page.locator('#CybotCookiebotDialogBodyLevelButtonLevelOptinAllowAll'),
     async () => {
-      await page.locator('#CybotCookiebotDialogBodyLevelButtonLevelOptinAllowAll').click();
+      try {
+        await page.locator('#CybotCookiebotDialogBodyLevelButtonLevelOptinAllowAll').click({ timeout: 2000 });
+      } catch {
+        await page.keyboard.press('Escape');
+      }
     }
   );
   await page.addLocatorHandler(
     page.locator('.welcomePopupInfo-active'),
     async () => {
-      await page.locator('.welcomePopupInfo-button').click();
+      try {
+        await page.locator('.welcomePopupInfo-button').click({ timeout: 2000 });
+      } catch {
+        // Fallback: close icon or escape
+        const closeIcon = page.locator('.welcomePopupInfo-topCloseIcon');
+        if (await closeIcon.isVisible({ timeout: 500 }).catch(() => false)) {
+          await closeIcon.click();
+        } else {
+          await page.keyboard.press('Escape');
+        }
+      }
     }
   );
 
