@@ -73,25 +73,17 @@ jobs:
           Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>"
             git push origin "$BRANCH_NAME"
             
-            gh pr create \
-              --title "fix(auto): Self-healed broken locators" \
-              --body "## 🔧 Auto-Healed Locators
-
-          The CI pipeline detected broken locators and the Healer agent fixed them automatically.
-
-          ### What changed
-          - Updated locator strategies in step definitions
-          - Healing history recorded in \`healing-history.json\`
-
-          ### How it works
-          1. Cucumber tests failed with locator errors
-          2. Healer captured \`ariaSnapshot()\` of the failing page
-          3. LLM suggested new user-facing locators
-          4. Fix applied and tests re-run successfully
-
-          > This PR was created automatically by the Agentic QA Pipeline." \
-              --base main \
-              --head "$BRANCH_NAME"
+            # Create PR via REST API
+            curl -X POST \
+              -H "Authorization: token $GH_TOKEN" \
+              -H "Accept: application/vnd.github.v3+json" \
+              https://api.github.com/repos/${{ github.repository }}/pulls \
+              -d "{
+                \"title\": \"fix(auto): Self-healed broken locators\",
+                \"head\": \"$BRANCH_NAME\",
+                \"base\": \"main\",
+                \"body\": \"## 🔧 Auto-Healed Locators\n\nThe CI pipeline detected broken locators and the Healer agent fixed them automatically.\n\n### What changed\n- Updated locator strategies in step definitions\n- Healing history recorded in healing-history.json\n\n### How it works\n1. Cucumber tests failed with locator errors\n2. Healer captured ariaSnapshot() of the failing page\n3. LLM suggested new user-facing locators\n4. Fix applied and tests re-run successfully\n\n> This PR was created automatically by the Agentic QA Pipeline.\"
+              }"
             
             echo "✅ PR created from branch: $BRANCH_NAME"
           fi
