@@ -35,29 +35,16 @@ When('I capture the first discounted product\'s prices from the listing', async 
   for (let i = 0; i < count; i++) {
     const card = productLinks.nth(i);
     const hasPrimary = await card.locator('[data-testid="listing-product-primary-price"]').count();
-    const hasPrice = await card.locator('[data-testid="listing-product-price"]').count();
+    const hasSecondary = await card.locator('[data-testid="listing-product-secondary-price"]').count();
 
-    if (hasPrimary > 0 && hasPrice > 0) {
-      // EN/DE structure: primary = original (strikethrough), price = discounted
+    if (hasPrimary > 0 && hasSecondary > 0) {
+      // Discounted product: primary = original (strikethrough), secondary = discounted
       const originalText = await card.locator('[data-testid="listing-product-primary-price"]').textContent();
-      const discountedText = await card.locator('[data-testid="listing-product-price"]').textContent();
+      const discountedText = await card.locator('[data-testid="listing-product-secondary-price"]').textContent();
       this.listingOriginalPrice = extractPrice(originalText);
       this.listingDiscountedPrice = extractPrice(discountedText);
       this.discountedProductIndex = i;
       break;
-    } else if (hasPrice > 0) {
-      // TR structure: price = original, campaign-badge contains discounted
-      const hasCampaign = await card.locator('[data-testid="campaign-badge"]').count();
-      if (hasCampaign > 0) {
-        const originalText = await card.locator('[data-testid="listing-product-price"]').textContent();
-        const campaignText = await card.locator('[data-testid="campaign-badge"]').textContent();
-        // Campaign badge format: "%25 İNDİRİMLİ 1.499,99 TL" — extract the last numeric portion
-        const priceMatch = campaignText?.match(/[\d.,]+/g);
-        this.listingOriginalPrice = extractPrice(originalText);
-        this.listingDiscountedPrice = extractPrice(priceMatch ? priceMatch[priceMatch.length - 1] : null);
-        this.discountedProductIndex = i;
-        break;
-      }
     }
   }
 

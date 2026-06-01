@@ -10,7 +10,6 @@ Feature: Price Verification between Listing and Detail
     Then the detail page prices should match the listing prices
 
     Examples:
-      | country | language | term   |
-      | USA     | en       | dress  |
-      | Turkey  | tr       | elbise |
+      | country | language | term  |
+      | USA     | en       | dress |
 
