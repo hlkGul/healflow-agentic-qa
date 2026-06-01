@@ -4,10 +4,13 @@ import { classifyError } from './utils/error-classifier.js';
 import { healFromError } from './utils/heal-logic.js';
 
 const MAX_HEAL_RETRIES = 3;
+const MAX_NAVIGATION_RETRIES = 2;
 
 async function main() {
   console.log('🔄 CI Pipeline: Run Cucumber tests + self-heal');
   console.log('═'.repeat(60));
+
+  let navigationRetries = 0;
 
   for (let attempt = 0; attempt <= MAX_HEAL_RETRIES; attempt++) {
     const { success, output } = runCucumber();
@@ -22,6 +25,14 @@ async function main() {
     }
 
     const classification = classifyError(output, output);
+
+    // Retry navigation timeouts (site may be temporarily slow)
+    if (classification.type === 'navigation_timeout' && navigationRetries < MAX_NAVIGATION_RETRIES) {
+      navigationRetries++;
+      console.log(`\n⏳ Navigation timeout — retrying (${navigationRetries}/${MAX_NAVIGATION_RETRIES})...`);
+      attempt--; // Don't count as heal attempt
+      continue;
+    }
 
     if (!classification.shouldHeal) {
       console.log(`\n❌ Non-healable error: ${classification.type}`);
