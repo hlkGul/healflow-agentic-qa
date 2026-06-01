@@ -1,11 +1,11 @@
 import { readFileSync, writeFileSync, readdirSync, existsSync } from 'node:fs';
 import { resolve, join } from 'node:path';
-import { chromium } from '@playwright/test';
-import { getAccessibilitySnapshot, truncateTree } from './accessibility.js';
+import { truncateTree } from './accessibility.js';
 import { saveHealingRecord, formatHistoryContext } from './healing-registry.js';
-import { setLocale } from '../support/locale.js';
 import { getBaseUrl, getDomain } from '../support/environment.js';
 import { HealerEngine } from '../healing/index.js';
+import { BrowserContextProvider } from '../healing/browser-context-provider.js';
+import type { ContextProvider } from '../healing/context-provider.js';
 import type { HealingContext } from '../healing/types.js';
 import type { HealingRecord, LocatorInfo } from '../types/index.js';
 
@@ -32,32 +32,23 @@ export async function healFromError(errorOutput: string): Promise<HealResult> {
     .map((f) => `// File: ${f}\n${readFileSync(f, 'utf-8')}`)
     .join('\n\n');
 
-  // Determine the correct page context from error output
   const targetUrl = extractTargetUrl(errorOutput);
+  const searchTerm = extractSearchTerm(errorOutput);
 
-  const browser = await chromium.launch({ headless: true });
+  // Build replay actions if search context exists
+  const replayActions = searchTerm && !targetUrl.includes('/search')
+    ? [
+        { type: 'fill' as const, selector: '#search-input', value: searchTerm },
+        { type: 'press' as const, selector: '#search-input', value: 'Enter' },
+      ]
+    : undefined;
+
+  const contextProvider: ContextProvider = new BrowserContextProvider();
   try {
-    const context = await browser.newContext({ viewport: { width: 1280, height: 720 } });
-
-    // Set English locale by default for consistent a11y tree
-    await setLocale(context, 'USA', 'en');
-
-    const page = await context.newPage();
-    await page.goto(targetUrl, { waitUntil: 'domcontentloaded', timeout: 15000 });
-
-    // If the error happened on a search results page, replay the search
-    const searchTerm = extractSearchTerm(errorOutput);
-    if (searchTerm && targetUrl.includes(getDomain().replace('.', '')) && !targetUrl.includes('/search')) {
-      const searchInput = page.locator('#search-input');
-      if (await searchInput.isVisible({ timeout: 3000 }).catch(() => false)) {
-        await searchInput.fill(searchTerm);
-        await searchInput.press('Enter');
-        await page.waitForURL(/search|q=/, { timeout: 10000 }).catch(() => {});
-        await page.waitForTimeout(2000);
-      }
-    }
-
-    const snapshot = await getAccessibilitySnapshot(page);
+    const snapshot = await contextProvider.captureSnapshot(targetUrl, {
+      locale: { country: 'USA', language: 'en' },
+      replayActions,
+    });
     const treeContext = truncateTree(snapshot.raw);
     const historyContext = formatHistoryContext('unknown element');
 
@@ -103,7 +94,7 @@ export async function healFromError(errorOutput: string): Promise<HealResult> {
 
     return { healed: false };
   } finally {
-    await browser.close();
+    await contextProvider.dispose();
   }
 }
 

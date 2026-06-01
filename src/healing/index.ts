@@ -3,8 +3,10 @@ import { RuleBasedStrategy } from './rule-based-strategy.js';
 import { LLMStrategy } from './llm-strategy.js';
 
 export { type HealingStrategy, type HealingContext, type HealingSuggestion } from './types.js';
+export { type ContextProvider, type CaptureOptions } from './context-provider.js';
 export { RuleBasedStrategy } from './rule-based-strategy.js';
 export { LLMStrategy } from './llm-strategy.js';
+export { BrowserContextProvider } from './browser-context-provider.js';
 
 /**
  * Tries strategies in order. First successful suggestion wins.
