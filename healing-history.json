@@ -18,5 +18,25 @@
     "reason": "The test is trying to fill the search input. The accessibility tree shows a textbox with the placeholder 'Ürün, Marka veya Kategorileri Arayın'. This seems to be the correct element.",
     "success": false,
     "accessibilityContext": "- dialog \"This website uses cookies\":\n  - img \"logo\"\n  - link \"Cookiebot by Usercentrics - opens in a new window\":\n    - /url: https://www.cookiebot.com/en/what-is-behind-powered-by-cookiebot/?utm_source=banner_cb&utm_medium=referral&utm_content=v2\n  - tabpanel \"Consent\":\n    - heading \"This website uses cookies\" [level=2]\n    - text: We use cookies to personalise content and ads, to provide social media features and to analyse our traffic. We also share information about your use of our site wi"
+  },
+  {
+    "id": "heal-1780320175837",
+    "timestamp": "2026-06-01T13:22:55.837Z",
+    "element": "the search input",
+    "originalLocator": {
+      "description": "broken",
+      "strategy": "getByRole",
+      "value": "unknown",
+      "line": 0
+    },
+    "healedLocator": {
+      "description": "the search input",
+      "strategy": "getByPlaceholder",
+      "value": "'Search Item, Category or Brand'",
+      "line": 5
+    },
+    "reason": "The test is trying to fill the search input. The accessibility tree shows a textbox with the placeholder 'Search Item, Category or Brand'. This seems to be the correct element.",
+    "success": false,
+    "accessibilityContext": "- dialog \"This website uses cookies\":\n  - img \"logo\"\n  - link \"Cookiebot by Usercentrics - opens in a new window\":\n    - /url: https://www.cookiebot.com/en/what-is-behind-powered-by-cookiebot/?utm_source=banner_cb&utm_medium=referral&utm_content=v2\n  - tabpanel \"Consent\":\n    - heading \"This website"
   }
 ]
