@@ -1,10 +1,27 @@
 import type { ErrorType, TestError } from '../types/index.js';
 
-interface ClassificationResult {
+export interface ClassificationResult {
   type: ErrorType;
   shouldHeal: boolean;
   shouldRetry: boolean;
   message: string;
+}
+
+/**
+ * Classifies test errors into actionable categories.
+ */
+export interface ErrorClassifier {
+  classify(errorMessage: string, stderr: string): ClassificationResult;
+}
+
+/**
+ * Pattern-based error classifier.
+ * Matches error output against known patterns to determine error type.
+ */
+export class PatternErrorClassifier implements ErrorClassifier {
+  classify(errorMessage: string, stderr: string): ClassificationResult {
+    return classifyError(errorMessage, stderr);
+  }
 }
 
 const LOCATOR_PATTERNS = [
