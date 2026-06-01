@@ -1,35 +1,15 @@
 import { readFileSync, writeFileSync, readdirSync, existsSync } from 'node:fs';
 import { resolve, join } from 'node:path';
 import { chromium } from '@playwright/test';
-import { callLLMWithJson } from './llm-client.js';
 import { getAccessibilitySnapshot, truncateTree } from './accessibility.js';
 import { saveHealingRecord, formatHistoryContext } from './healing-registry.js';
 import { setLocale } from '../support/locale.js';
 import { getBaseUrl, getDomain } from '../support/environment.js';
+import { HealerEngine } from '../healing/index.js';
+import type { HealingContext } from '../healing/types.js';
 import type { HealingRecord, LocatorInfo } from '../types/index.js';
 
 const STEPS_DIR = resolve(process.cwd(), 'src', 'step-definitions');
-
-const HEALER_PROMPT = `You are a Playwright Locator Healer. A Cucumber step definition test failed because a locator could not find an element. Suggest a fix.
-
-RULES:
-1. ONLY suggest user-facing locators: getByRole, getByText, getByLabel, getByPlaceholder, getByTestId
-2. The "value" field = ONLY the arguments inside parentheses
-   Examples: "'link', { name: 'Elbise' }" or "'Ara'" or "'searchbox', { name: 'Search' }"
-3. Analyze the accessibility tree to find the correct element
-4. Consider the healing history — avoid suggesting locators that failed before
-5. NEVER suggest XPath or CSS selectors
-
-OUTPUT JSON:
-{
-  "suggestedLocator": {
-    "description": "element description",
-    "strategy": "getByRole|getByText|getByLabel|getByPlaceholder|getByTestId",
-    "value": "arguments only",
-    "line": 0
-  },
-  "reasoning": "why this works"
-}`;
 
 export interface HealResult {
   healed: boolean;
@@ -40,7 +20,7 @@ export interface HealResult {
 
 /**
  * Attempt to heal broken locators in step definition files.
- * Navigates to the correct page context based on error output.
+ * Uses strategy chain: rule-based first, then LLM fallback.
  */
 export async function healFromError(errorOutput: string): Promise<HealResult> {
   const stepFiles = getStepFiles();
@@ -81,27 +61,31 @@ export async function healFromError(errorOutput: string): Promise<HealResult> {
     const treeContext = truncateTree(snapshot.raw);
     const historyContext = formatHistoryContext('unknown element');
 
-    const userPrompt = `ERROR:\n${errorOutput.slice(0, 1000)}\n\nSTEP DEFINITION CODE:\n${allStepCode}\n\nACCESSIBILITY TREE:\n${treeContext}\n\nHEALING HISTORY:\n${historyContext}`;
+    // Use strategy chain: rule-based → LLM
+    const healerEngine = new HealerEngine();
+    const healingContext: HealingContext = {
+      errorMessage: errorOutput.slice(0, 1000),
+      code: allStepCode,
+      snapshot: { ...snapshot, raw: treeContext },
+      history: historyContext,
+    };
 
-    const suggestion = await callLLMWithJson<{ suggestedLocator: LocatorInfo; reasoning: string }>(
-      HEALER_PROMPT,
-      userPrompt,
-      { maxTokens: 1024, temperature: 0.1 }
-    );
+    const suggestion = await healerEngine.heal(healingContext);
+    if (!suggestion) return { healed: false };
 
     // Apply fix
     for (const file of stepFiles) {
       const code = readFileSync(file, 'utf-8');
-      const fixedCode = applyLocatorFix(code, errorOutput, suggestion.suggestedLocator);
+      const fixedCode = applyLocatorFix(code, errorOutput, suggestion.locator);
       if (fixedCode !== code) {
         writeFileSync(file, fixedCode, 'utf-8');
 
         const record: HealingRecord = {
           id: `heal-${Date.now()}`,
           timestamp: new Date().toISOString(),
-          element: suggestion.suggestedLocator.description,
+          element: suggestion.locator.description,
           originalLocator: { description: 'broken', strategy: 'getByRole', value: 'unknown', line: 0 },
-          healedLocator: suggestion.suggestedLocator,
+          healedLocator: suggestion.locator,
           reason: suggestion.reasoning,
           success: false,
           accessibilityContext: treeContext.slice(0, 300),
@@ -111,7 +95,7 @@ export async function healFromError(errorOutput: string): Promise<HealResult> {
         return {
           healed: true,
           file,
-          locator: `${suggestion.suggestedLocator.strategy}(${suggestion.suggestedLocator.value})`,
+          locator: `${suggestion.locator.strategy}(${suggestion.locator.value})`,
           reasoning: suggestion.reasoning,
         };
       }
