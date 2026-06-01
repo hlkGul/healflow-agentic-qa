@@ -8,6 +8,7 @@ on:
 
 permissions:
   contents: write
+  pull-requests: write
 
 jobs:
   type-check:
@@ -52,7 +53,7 @@ jobs:
       - name: Run Cucumber tests (with self-healing)
         run: npx tsx src/ci-runner.ts
 
-      - name: Commit healed locators
+      - name: Create PR with healed locators
         if: success() || failure()
         run: |
           git config user.name "github-actions[bot]"
@@ -61,6 +62,8 @@ jobs:
           if git diff --quiet; then
             echo "No changes to commit"
           else
+            BRANCH_NAME="fix/auto-heal-$(date +%Y%m%d-%H%M%S)"
+            git checkout -b "$BRANCH_NAME"
             git add src/step-definitions/ healing-history.json
             git commit -m "fix(auto): self-healed locators via CI pipeline
 
@@ -68,9 +71,32 @@ jobs:
           See healing-history.json for details.
 
           Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>"
-            git push
-            echo "✅ Healed locators committed and pushed"
+            git push origin "$BRANCH_NAME"
+            
+            gh pr create \
+              --title "fix(auto): Self-healed broken locators" \
+              --body "## 🔧 Auto-Healed Locators
+
+          The CI pipeline detected broken locators and the Healer agent fixed them automatically.
+
+          ### What changed
+          - Updated locator strategies in step definitions
+          - Healing history recorded in \`healing-history.json\`
+
+          ### How it works
+          1. Cucumber tests failed with locator errors
+          2. Healer captured \`ariaSnapshot()\` of the failing page
+          3. LLM suggested new user-facing locators
+          4. Fix applied and tests re-run successfully
+
+          > This PR was created automatically by the Agentic QA Pipeline." \
+              --base main \
+              --head "$BRANCH_NAME"
+            
+            echo "✅ PR created from branch: $BRANCH_NAME"
           fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload artifacts
         if: always()
