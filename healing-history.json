@@ -58,5 +58,25 @@
     "reason": "The test is trying to fill the search input. The accessibility tree shows a textbox with the placeholder 'Search Item, Category or Brand'. This seems to be the correct element.",
     "success": false,
     "accessibilityContext": "- link \"Help & Support\":\n  - /url: https://m.modanisa.com/en/faq/\n  - paragraph: Help & Support\n- link \"Sign up\":\n  - /url: /en/membership/login/?showRegister=true\n- text: or\n- link \"Login\":\n  - /url: /en/membership/login/\n- text: English - USD\n- link \"Modanisa\":\n  - /url: /en/\n- img\n- textbox \"Sear"
+  },
+  {
+    "id": "heal-1780324278109",
+    "timestamp": "2026-06-01T14:31:18.109Z",
+    "element": "the search input",
+    "originalLocator": {
+      "description": "broken",
+      "strategy": "getByRole",
+      "value": "unknown",
+      "line": 0
+    },
+    "healedLocator": {
+      "description": "the search input",
+      "strategy": "getByPlaceholder",
+      "value": "'Search Item, Category or Brand'",
+      "line": 5
+    },
+    "reason": "The test is trying to fill the search input. The accessibility tree shows a textbox with the placeholder 'Search Item, Category or Brand'. This seems to be the correct element.",
+    "success": false,
+    "accessibilityContext": "- dialog \"This website uses cookies\":\n  - img \"logo\"\n  - link \"Cookiebot by Usercentrics - opens in a new window\":\n    - /url: https://www.cookiebot.com/en/what-is-behind-powered-by-cookiebot/?utm_source=banner_cb&utm_medium=referral&utm_content=v2\n  - tabpanel \"Consent\":\n    - heading \"This website"
   }
 ]
