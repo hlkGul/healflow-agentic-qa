@@ -4,6 +4,7 @@ import { resolve } from 'node:path';
 import { buildWorkflow } from './graph/workflow.js';
 import { generateStepDefinitions } from './utils/step-generator.js';
 import { parseCriteriaFile } from './utils/criteria-parser.js';
+import { getBaseUrl } from './support/environment.js';
 import type { TestIntent } from './types/index.js';
 
 export async function runAgenticTest(userMessage: string, targetUrl: string) {
@@ -118,7 +119,7 @@ export async function runFromCriteriaFile(filePath: string) {
 
 // CLI entry point
 const input = process.argv[2];
-const targetUrl = process.argv[3] ?? 'https://www.modanisa.com';
+const targetUrl = process.argv[3] ?? getBaseUrl();
 
 if (!input) {
   console.error('Usage:');

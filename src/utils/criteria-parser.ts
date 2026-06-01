@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import type { AcceptanceCriteria, TestStep } from '../types/index.js';
+import { getBaseUrl } from '../support/environment.js';
 
 /**
  * Parses a criteria markdown file into AcceptanceCriteria struct.
@@ -22,7 +23,7 @@ export function parseCriteriaFile(filePath: string): { criteria: AcceptanceCrite
   const lines = content.split('\n');
 
   let title = '';
-  let targetUrl = 'https://www.modanisa.com';
+  let targetUrl = getBaseUrl();
   const preconditions: string[] = [];
   const steps: TestStep[] = [];
   const expectedResults: string[] = [];

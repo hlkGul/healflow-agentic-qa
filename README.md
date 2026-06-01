@@ -68,6 +68,22 @@ npm run test:ci
 | `GEMINI_API_KEY` | One of these | Google Gemini API key |
 | `OPENAI_API_KEY` | One of these | OpenAI API key |
 | `LLM_PROVIDER` | No | Force provider: `gemini` or `openai` (auto-detected if not set) |
+| `TEST_ENV` | No | Target environment: `dev` or `prod` (default: `prod`) |
+
+**Environments:**
+
+| Environment | Base URL | Domain |
+|-------------|----------|--------|
+| `prod` | https://www.modanisa.com | .modanisa.com |
+| `dev` | https://web-dev.modanisa.net | .modanisa.net |
+
+```bash
+# Run tests against dev environment
+TEST_ENV=dev npm test
+
+# Run tests against prod (default)
+npm test
+```
 
 Auto-detection priority: `LLM_PROVIDER` env → `GEMINI_API_KEY` present → `OPENAI_API_KEY` present.
 
@@ -136,7 +152,8 @@ src/
 │   └── step-generator.ts    # Step definition code generation
 ├── support/
 │   ├── world.ts         # Cucumber hooks (Before/After, popup auto-dismiss)
-│   └── locale.ts        # Country/language cookie-based locale setter
+│   ├── locale.ts        # Country/language cookie-based locale setter
+│   └── environment.ts   # Dev/prod environment config (base URL, domain)
 ├── step-definitions/    # Cucumber step definitions
 ├── types/               # Shared TypeScript interfaces
 ├── ci-runner.ts         # CI self-healing orchestrator

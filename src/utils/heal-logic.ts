@@ -5,6 +5,7 @@ import { callLLMWithJson } from './llm-client.js';
 import { getAccessibilitySnapshot, truncateTree } from './accessibility.js';
 import { saveHealingRecord, formatHistoryContext } from './healing-registry.js';
 import { setLocale } from '../support/locale.js';
+import { getBaseUrl, getDomain } from '../support/environment.js';
 import type { HealingRecord, LocatorInfo } from '../types/index.js';
 
 const STEPS_DIR = resolve(process.cwd(), 'src', 'step-definitions');
@@ -66,7 +67,7 @@ export async function healFromError(errorOutput: string): Promise<HealResult> {
 
     // If the error happened on a search results page, replay the search
     const searchTerm = extractSearchTerm(errorOutput);
-    if (searchTerm && targetUrl.includes('modanisa.com') && !targetUrl.includes('/search')) {
+    if (searchTerm && targetUrl.includes(getDomain().replace('.', '')) && !targetUrl.includes('/search')) {
       const searchInput = page.locator('#search-input');
       if (await searchInput.isVisible({ timeout: 3000 }).catch(() => false)) {
         await searchInput.fill(searchTerm);
@@ -128,7 +129,7 @@ export async function healFromError(errorOutput: string): Promise<HealResult> {
 function extractTargetUrl(errorOutput: string): string {
   // Look for URLs in the error that indicate which page the test was on
   const urlPatterns = [
-    /https?:\/\/www\.modanisa\.com[^\s"')]+/g,
+    /https?:\/\/(?:www\.modanisa\.com|web-dev\.modanisa\.net)[^\s"')]+/g,
     /page\.goto\(['"]([^'"]+)['"]\)/,
   ];
 
@@ -142,7 +143,7 @@ function extractTargetUrl(errorOutput: string): string {
     }
   }
 
-  return 'https://www.modanisa.com';
+  return getBaseUrl();
 }
 
 /**

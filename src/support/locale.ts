@@ -1,4 +1,5 @@
 import type { BrowserContext } from '@playwright/test';
+import { getDomain } from './environment.js';
 
 export interface LocaleConfig {
   countryId: number;
@@ -68,9 +69,10 @@ export async function setLocale(context: BrowserContext, country: string, langua
     customer_language: langCode,
   });
 
+  const domain = getDomain();
   await context.addCookies([
-    { name: 'user_shipping_data', value: encodeURIComponent(shippingData), domain: '.modanisa.com', path: '/' },
-    { name: 'customer-shipping-country-id-1', value: String(countryConfig.countryId), domain: '.modanisa.com', path: '/' },
-    { name: 'customer-language-1', value: langCode, domain: '.modanisa.com', path: '/' },
+    { name: 'user_shipping_data', value: encodeURIComponent(shippingData), domain, path: '/' },
+    { name: 'customer-shipping-country-id-1', value: String(countryConfig.countryId), domain, path: '/' },
+    { name: 'customer-language-1', value: langCode, domain, path: '/' },
   ]);
 }

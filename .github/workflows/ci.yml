@@ -32,6 +32,7 @@ jobs:
     needs: type-check
     env:
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      TEST_ENV: ${{ vars.TEST_ENV || 'prod' }}
 
     steps:
       - uses: actions/checkout@v4

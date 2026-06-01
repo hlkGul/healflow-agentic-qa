@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import { runnerAgent } from './agents/runner.js';
 import { healerAgent } from './agents/healer.js';
+import { getBaseUrl } from './support/environment.js';
 import type { GeneratedTestCode } from './types/index.js';
 import type { GraphStateType } from './graph/state.js';
 import { readFileSync } from 'node:fs';
@@ -36,7 +37,7 @@ async function testHealer() {
     phase: 'running',
     intent: {
       userMessage: 'Search for elbise on Modanisa',
-      targetUrl: 'https://www.modanisa.com',
+      targetUrl: getBaseUrl(),
     },
     generatedCode,
     criteria: {
