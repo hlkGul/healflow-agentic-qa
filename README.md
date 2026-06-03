@@ -2,7 +2,7 @@
 
 Self-healing test automation framework with multi-provider LLM support, Playwright, and LangGraph orchestration.
 
-Target site: [modanisa.com](https://www.modanisa.com) — multi-locale (EN/TR/DE), multi-country e-commerce platform.
+Target site: [modanisa.com](https://www.modanisa.com) — multi-locale e-commerce platform.
 
 ## Architecture
 
@@ -26,9 +26,10 @@ Target site: [modanisa.com](https://www.modanisa.com) — multi-locale (EN/TR/DE
 │  Type Check → Cucumber Tests → Pass? ✅ Done                │
 │                               → Fail?                      │
 │                                 → Error Classification      │
-│                                 → Healer (ariaSnapshot)    │
+│                                 → Strategy Chain Healing    │
+│                                   (Rule-based → LLM)       │
 │                                 → Re-run → ✅              │
-│                                 → Auto-commit fix          │
+│                                 → Create PR with fix       │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -111,19 +112,16 @@ npm run generate -- --file criteria/search-elbise.md
 
 ### Multi-Locale Testing
 
-Tests support parametric locale selection via Scenario Outline:
+Tests use parametric locale selection:
 
 ```gherkin
-Given I open the site in "<country>" country with "<language>" language
-
-Examples:
-  | country | language | term   |
-  | USA     | en       | dress  |
-  | Turkey  | tr       | elbise |
+Given I open the site in "USA" country with "en" language
 ```
 
 Supported countries: USA, Turkey, Germany, France, UK, UAE  
 Supported languages: en, tr, de, ar
+
+> **Note:** Current test scenarios run in EN locale only. TR locale has structural DOM differences (e.g., no primary price element for price comparison) that make cross-locale assertions unreliable. Multi-locale support is available in the framework but not actively used in CI until locale-specific assertion logic is implemented.
 
 ## Design Principles
 
@@ -142,13 +140,23 @@ Supported languages: en, tr, de, ar
 src/
 ├── agents/              # Planner, Generator, Runner, Healer
 ├── graph/               # LangGraph state machine & workflow
+├── healing/             # Self-healing abstractions & strategies
+│   ├── types.ts         # HealingStrategy, HealingContext, HealingSuggestion interfaces
+│   ├── index.ts         # HealerEngine (strategy chain) + barrel exports
+│   ├── rule-based-strategy.ts  # Pattern-based healing (no LLM cost)
+│   ├── llm-strategy.ts         # LLM-based healing (fallback)
+│   ├── context-provider.ts     # ContextProvider interface
+│   ├── browser-context-provider.ts  # AriaSnapshot capture implementation
+│   ├── healing-store.ts        # HealingStore interface
+│   ├── test-runner.ts          # TestRunner interface
+│   └── cucumber-runner.ts      # CucumberRunner implementation
 ├── utils/
 │   ├── llm/             # Multi-provider abstraction (Gemini, OpenAI)
 │   ├── llm-client.ts    # Unified callLLM / callLLMWithJson with retry
 │   ├── accessibility.ts # ariaSnapshot capture (primary) + deprecated API fallback
-│   ├── heal-logic.ts    # Shared healing logic (CI + agent)
-│   ├── healing-registry.ts  # Healing history read/write
-│   ├── error-classifier.ts  # Categorize errors (locator/timeout/network/unknown)
+│   ├── heal-logic.ts    # Healing orchestrator (uses ContextProvider + HealerEngine)
+│   ├── healing-registry.ts  # JsonHealingStore + backward-compatible exports
+│   ├── error-classifier.ts  # ErrorClassifier interface + PatternErrorClassifier
 │   └── step-generator.ts    # Step definition code generation
 ├── support/
 │   ├── world.ts         # Cucumber hooks (Before/After, popup auto-dismiss)
@@ -159,7 +167,11 @@ src/
 ├── ci-runner.ts         # CI self-healing orchestrator
 └── index.ts             # CLI entry point (intent & file modes)
 
-features/                # Gherkin feature files (Scenario Outlines)
+features/                # Gherkin feature files
+├── search.feature       # Search product test
+├── add-to-cart.feature  # Add to cart + verify test
+└── price-verification.feature  # Price match between listing & detail
+
 criteria/                # Acceptance criteria (markdown)
 healing-history.json     # Healing registry (auto-updated)
 .github/workflows/ci.yml # GitHub Actions pipeline
@@ -168,11 +180,26 @@ healing-history.json     # Healing registry (auto-updated)
 ## Self-Healing Flow
 
 1. **Error Classification** — Categorizes failure as `locator` / `timeout` / `network` / `unknown`
-2. **Context Capture** — Navigates to the failing page, captures `ariaSnapshot()`
-3. **LLM Healing** — Sends error + snapshot + healing history to LLM for locator suggestion
+2. **Context Capture** — Navigates to the failing page via `BrowserContextProvider`, captures `ariaSnapshot()`
+3. **Strategy Chain** — Tries `RuleBasedStrategy` first (free, fast pattern-matching), falls back to `LLMStrategy`
 4. **Apply Fix** — Replaces broken locator in step definition code
-5. **Re-run** — Executes test again; if passes → auto-commits the fix
-6. **Registry** — Records the healing attempt for future context
+5. **Re-run** — Executes test again (max 3 retries); navigation timeouts get up to 2 extra attempts
+6. **Registry** — Records the healing attempt in `healing-history.json` for future context
+7. **PR Creation** — If healer fixes locators in CI, a new branch + PR is created automatically
+
+### Strategy Chain
+
+```
+Error detected → RuleBasedStrategy (pattern match ariaSnapshot)
+                      │
+                      ├─ Match found (high confidence) → Apply fix
+                      │
+                      └─ No match → LLMStrategy (Gemini/OpenAI)
+                                         │
+                                         └─ Suggestion → Apply fix
+```
+
+The rule-based strategy handles common cases (textbox placeholders, button labels) without LLM cost. The LLM strategy handles complex or unknown patterns.
 
 ## Why Not Playwright's Built-in Test Agents?
 
@@ -212,6 +239,40 @@ The GitHub Actions workflow (`.github/workflows/ci.yml`) runs on every push/PR t
 
 1. **Type Check** — `tsc --noEmit`
 2. **E2E Tests** — Cucumber tests with self-healing via `src/ci-runner.ts`
-3. **Auto-commit** — If healer fixes locators, changes are committed automatically
+3. **Auto-heal PR** — If healer fixes locators, a new branch is created and a PR is opened automatically
+
+The PR includes:
+- Updated step definition files with healed locators
+- Updated `healing-history.json` with healing records
+- Descriptive commit message with healing details
 
 Required secrets: `GEMINI_API_KEY` (or `OPENAI_API_KEY`)
+
+> **Note:** Repository must have "Allow GitHub Actions to create and approve pull requests" enabled in Settings → Actions → General.
+
+## Extensibility (Interfaces)
+
+The `src/healing/` module provides clean interfaces for extending the system:
+
+| Interface | Purpose | Implementations |
+|-----------|---------|-----------------|
+| `HealingStrategy` | Strategy for fixing broken locators | `RuleBasedStrategy`, `LLMStrategy` |
+| `ContextProvider` | Captures page context (a11y tree) | `BrowserContextProvider` |
+| `HealingStore` | Persists healing history | `JsonHealingStore` |
+| `TestRunner` | Executes tests and returns results | `CucumberRunner` |
+| `ErrorClassifier` | Categorizes test failures | `PatternErrorClassifier` |
+
+To add a new healing strategy (e.g., visual-based):
+
+```typescript
+import { HealingStrategy, HealingContext, HealingSuggestion } from './src/healing';
+
+class VisualStrategy implements HealingStrategy {
+  name = 'visual';
+  async heal(context: HealingContext): Promise<HealingSuggestion | null> {
+    // Your implementation
+  }
+}
+```
+
+Then register it in the `HealerEngine` strategy chain.
