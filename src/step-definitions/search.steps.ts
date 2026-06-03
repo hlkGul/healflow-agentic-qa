@@ -4,13 +4,13 @@ import type { Page } from '@playwright/test';
 
 When('I type {string} in the search input', async function (searchText: string) {
   const page: Page = this.page;
-  const searchInput = page.getByPlaceholder('Search Item, Category or Brand');
+  const searchInput = page.getByPlaceholder('Search products here...');
   await searchInput.fill(searchText);
 });
 
 When('I press {string} in the search input', async function (key: string) {
   const page: Page = this.page;
-  const searchInput = page.getByPlaceholder('Search Item, Category or Brand');
+  const searchInput = page.getByPlaceholder('Search products here...');
   await searchInput.press(key);
 });
 
