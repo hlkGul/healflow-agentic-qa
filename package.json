@@ -1,5 +1,5 @@
 {
-  "name": "opus-based-agentic-qa",
+  "name": "healflow-agentic-qa",
   "version": "1.0.0",
   "description": "Self-healing agentic QA automation with Playwright + LangGraph + multi-provider LLM",
   "scripts": {
@@ -11,16 +11,16 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/hlkGul/opus-based-agentic-qa.git"
+    "url": "git+https://github.com/hlkGul/healflow-agentic-qa.git"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "module",
   "bugs": {
-    "url": "https://github.com/hlkGul/opus-based-agentic-qa/issues"
+    "url": "https://github.com/hlkGul/healflow-agentic-qa/issues"
   },
-  "homepage": "https://github.com/hlkGul/opus-based-agentic-qa#readme",
+  "homepage": "https://github.com/hlkGul/healflow-agentic-qa#readme",
   "devDependencies": {
     "@cucumber/cucumber": "^12.9.0",
     "@playwright/test": "^1.60.0",

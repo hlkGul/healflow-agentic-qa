@@ -1,4 +1,4 @@
-# Opus-Based Agentic QA
+# HealFlow Agentic QA
 
 Self-healing test automation framework with multi-provider LLM support, Playwright, and LangGraph orchestration.
 
