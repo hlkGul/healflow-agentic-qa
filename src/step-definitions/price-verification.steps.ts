@@ -29,21 +29,21 @@ function extractPrice(text: string | null | undefined): string {
 When('I capture the first discounted product\'s prices from the listing', async function () {
   const page: Page = this.page;
 
-  const productLinks = page.locator('[data-testid="listing-product-link"]');
-  const count = await productLinks.count();
+  const products = page.locator('[data-testid="listing-product"]');
+  const count = await products.count();
 
   if (count === 0) {
     return 'pending';
   }
 
   for (let i = 0; i < count; i++) {
-    const card = productLinks.nth(i);
+    const card = products.nth(i);
     const hasPrimary = await card.locator('[data-testid="listing-product-primary-price"]').count();
-    const hasSecondary = await card.locator('[data-testid="listing-product-secondary-price"]').count();
+    const hasPrice = await card.locator('[data-testid="listing-product-price"]').count();
 
-    if (hasPrimary > 0 && hasSecondary > 0) {
+    if (hasPrimary > 0 && hasPrice > 0) {
       const originalText = await card.locator('[data-testid="listing-product-primary-price"]').textContent();
-      const discountedText = await card.locator('[data-testid="listing-product-secondary-price"]').textContent();
+      const discountedText = await card.locator('[data-testid="listing-product-price"]').textContent();
       this.listingOriginalPrice = extractPrice(originalText);
       this.listingDiscountedPrice = extractPrice(discountedText);
       this.discountedProductIndex = i;
@@ -59,10 +59,11 @@ When('I capture the first discounted product\'s prices from the listing', async 
 When('I click the first discounted product', async function () {
   const page: Page = this.page;
 
-  const card = page.locator('[data-testid="listing-product-link"]').nth(this.discountedProductIndex);
+  const card = page.locator('[data-testid="listing-product"]').nth(this.discountedProductIndex);
+  const link = card.locator('[data-testid="listing-product-link"]').first();
   await Promise.all([
     page.waitForURL(/\.html/, { timeout: 15000 }),
-    card.click(),
+    link.click(),
   ]);
   await page.waitForLoadState('domcontentloaded');
 });
@@ -70,30 +71,19 @@ When('I click the first discounted product', async function () {
 Then('the detail page prices should match the listing prices', async function () {
   const page: Page = this.page;
 
-  const detailSection = page.locator('#product-detail');
+  const priceSection = page.locator('.productPriceInfo').first();
 
-  // Try EN/DE structure first (alternatePrice = original, mainPrice = discounted)
-  const altPrice = detailSection.locator('.productPriceInfo-alternatePrice bdi');
-  const mainPrice = detailSection.locator('.productPriceInfo-mainPrice bdi');
+  const altPrice = priceSection.locator('.productPriceInfo-alternatePrice').first();
+  const mainPrice = priceSection.locator('.productPriceInfo-mainPrice').first();
 
   const hasAlt = await altPrice.isVisible({ timeout: 10000 }).catch(() => false);
 
-  let detailOriginalPrice: string;
-  let detailDiscountedPrice: string;
-
-  if (hasAlt) {
-    detailOriginalPrice = extractPrice(await altPrice.textContent());
-    detailDiscountedPrice = extractPrice(await mainPrice.textContent());
-  } else {
-    // TR structure: mainPrice = original, campaignText contains discounted
-    const mainText = await mainPrice.textContent().catch(() => null);
-    const campaignEl = detailSection.locator('.productPriceInfo-campaignText');
-    const campaignText = await campaignEl.textContent().catch(() => null);
-    detailOriginalPrice = extractPrice(mainText);
-    // Campaign text format: "%25 İNDİRİMLİ 1.499,99 TL" — extract price portion
-    const priceMatch = campaignText?.match(/[\d.,]+/g);
-    detailDiscountedPrice = extractPrice(priceMatch ? priceMatch[priceMatch.length - 1] : null);
+  if (!hasAlt) {
+    return 'pending';
   }
+
+  const detailOriginalPrice = extractPrice(await altPrice.textContent());
+  const detailDiscountedPrice = extractPrice(await mainPrice.textContent());
 
   expect(detailOriginalPrice).toBe(this.listingOriginalPrice);
   expect(detailDiscountedPrice).toBe(this.listingDiscountedPrice);
