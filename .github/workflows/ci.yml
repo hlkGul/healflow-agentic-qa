@@ -9,6 +9,7 @@ on:
 permissions:
   contents: write
   pull-requests: write
+  issues: write
 
 jobs:
   type-check:
@@ -87,6 +88,84 @@ jobs:
             
             echo "✅ PR created from branch: $BRANCH_NAME"
           fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create issue for unhealable failures
+        if: failure()
+        run: |
+          if [ ! -f ci-failure-report.json ]; then
+            echo "No failure report found, skipping issue creation"
+            exit 0
+          fi
+          
+          ERROR_TYPE=$(jq -r '.errorType' ci-failure-report.json)
+          MESSAGE=$(jq -r '.message' ci-failure-report.json)
+          SCENARIO=$(jq -r '.scenario' ci-failure-report.json)
+          STEP=$(jq -r '.step' ci-failure-report.json)
+          HEAL_ATTEMPTS=$(jq -r '.healAttempts' ci-failure-report.json)
+          HEALABLE=$(jq -r '.healable' ci-failure-report.json)
+          TIMESTAMP=$(jq -r '.timestamp' ci-failure-report.json)
+          
+          if [ "$HEALABLE" = "true" ]; then
+            LABEL="healer-exhausted"
+            TITLE="🔧 Healer exhausted: ${STEP}"
+            BODY="## ⚠️ Self-Healing Failed After ${HEAL_ATTEMPTS} Attempts
+
+**Scenario:** \`${SCENARIO}\`
+**Failing Step:** \`${STEP}\`
+**Error Type:** \`${ERROR_TYPE}\`
+**Timestamp:** ${TIMESTAMP}
+**Commit:** ${{ github.sha }}
+
+### Error Message
+\`\`\`
+${MESSAGE}
+\`\`\`
+
+### What happened
+The CI healer tried ${HEAL_ATTEMPTS} time(s) to fix this locator but the test still fails. This likely means the page structure has changed significantly and requires manual investigation.
+
+### Suggested Actions
+- [ ] Inspect the page DOM/accessibility tree manually
+- [ ] Update the step definition with new locators
+- [ ] Consider if the test scenario needs restructuring"
+          else
+            LABEL="non-healable"
+            TITLE="❌ Non-healable test failure: ${ERROR_TYPE}"
+            BODY="## 🚨 Non-Healable Test Failure
+
+**Scenario:** \`${SCENARIO}\`  
+**Failing Step:** \`${STEP}\`
+**Error Type:** \`${ERROR_TYPE}\`
+**Timestamp:** ${TIMESTAMP}
+**Commit:** ${{ github.sha }}
+
+### Error Message
+\`\`\`
+${MESSAGE}
+\`\`\`
+
+### Why it can't be healed
+This error type (\`${ERROR_TYPE}\`) is not a locator issue — it's a logic/assertion/network problem that requires manual intervention.
+
+### Suggested Actions
+- [ ] Check if the site behavior or API has changed
+- [ ] Review the assertion logic in the step definition
+- [ ] Verify network/environment stability"
+          fi
+          
+          curl -X POST \
+            -H "Authorization: token $GH_TOKEN" \
+            -H "Accept: application/vnd.github.v3+json" \
+            https://api.github.com/repos/${{ github.repository }}/issues \
+            -d "$(jq -n \
+              --arg title "$TITLE" \
+              --arg body "$BODY" \
+              --arg label "$LABEL" \
+              '{title: $title, body: $body, labels: [$label, "automated"]}')"
+          
+          echo "📝 Issue created for unhealable failure"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

@@ -4,5 +4,6 @@ test-results/
 playwright-report/
 tests/generated/
 cucumber-report.html
+ci-failure-report.json
 .env
 *.tsbuildinfo
