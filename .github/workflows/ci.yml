@@ -106,53 +106,18 @@ jobs:
           HEAL_ATTEMPTS=$(jq -r '.healAttempts' ci-failure-report.json)
           HEALABLE=$(jq -r '.healable' ci-failure-report.json)
           TIMESTAMP=$(jq -r '.timestamp' ci-failure-report.json)
+          COMMIT_SHA="${{ github.sha }}"
           
           if [ "$HEALABLE" = "true" ]; then
             LABEL="healer-exhausted"
-            TITLE="🔧 Healer exhausted: ${STEP}"
-            BODY="## ⚠️ Self-Healing Failed After ${HEAL_ATTEMPTS} Attempts
-
-**Scenario:** \`${SCENARIO}\`
-**Failing Step:** \`${STEP}\`
-**Error Type:** \`${ERROR_TYPE}\`
-**Timestamp:** ${TIMESTAMP}
-**Commit:** ${{ github.sha }}
-
-### Error Message
-\`\`\`
-${MESSAGE}
-\`\`\`
-
-### What happened
-The CI healer tried ${HEAL_ATTEMPTS} time(s) to fix this locator but the test still fails. This likely means the page structure has changed significantly and requires manual investigation.
-
-### Suggested Actions
-- [ ] Inspect the page DOM/accessibility tree manually
-- [ ] Update the step definition with new locators
-- [ ] Consider if the test scenario needs restructuring"
+            TITLE="Healer exhausted: ${STEP}"
+            BODY=$(printf "## Self-Healing Failed After %s Attempts\n\n**Scenario:** %s\n**Failing Step:** %s\n**Error Type:** %s\n**Timestamp:** %s\n**Commit:** %s\n\n### Error Message\n\n%s\n\n### What happened\nThe CI healer tried %s time(s) to fix this locator but the test still fails.\n\n### Suggested Actions\n- [ ] Inspect the page DOM/accessibility tree manually\n- [ ] Update the step definition with new locators\n- [ ] Consider if the test scenario needs restructuring" \
+              "$HEAL_ATTEMPTS" "$SCENARIO" "$STEP" "$ERROR_TYPE" "$TIMESTAMP" "$COMMIT_SHA" "$MESSAGE" "$HEAL_ATTEMPTS")
           else
             LABEL="non-healable"
-            TITLE="❌ Non-healable test failure: ${ERROR_TYPE}"
-            BODY="## 🚨 Non-Healable Test Failure
-
-**Scenario:** \`${SCENARIO}\`  
-**Failing Step:** \`${STEP}\`
-**Error Type:** \`${ERROR_TYPE}\`
-**Timestamp:** ${TIMESTAMP}
-**Commit:** ${{ github.sha }}
-
-### Error Message
-\`\`\`
-${MESSAGE}
-\`\`\`
-
-### Why it can't be healed
-This error type (\`${ERROR_TYPE}\`) is not a locator issue — it's a logic/assertion/network problem that requires manual intervention.
-
-### Suggested Actions
-- [ ] Check if the site behavior or API has changed
-- [ ] Review the assertion logic in the step definition
-- [ ] Verify network/environment stability"
+            TITLE="Non-healable test failure: ${ERROR_TYPE}"
+            BODY=$(printf "## Non-Healable Test Failure\n\n**Scenario:** %s\n**Failing Step:** %s\n**Error Type:** %s\n**Timestamp:** %s\n**Commit:** %s\n\n### Error Message\n\n%s\n\n### Why it cannot be healed\nThis error type (%s) is not a locator issue and requires manual intervention.\n\n### Suggested Actions\n- [ ] Check if the site behavior or API has changed\n- [ ] Review the assertion logic in the step definition\n- [ ] Verify network/environment stability" \
+              "$SCENARIO" "$STEP" "$ERROR_TYPE" "$TIMESTAMP" "$COMMIT_SHA" "$MESSAGE" "$ERROR_TYPE")
           fi
           
           curl -X POST \
@@ -165,7 +130,7 @@ This error type (\`${ERROR_TYPE}\`) is not a locator issue — it's a logic/asse
               --arg label "$LABEL" \
               '{title: $title, body: $body, labels: [$label, "automated"]}')"
           
-          echo "📝 Issue created for unhealable failure"
+          echo "Issue created for unhealable failure"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
