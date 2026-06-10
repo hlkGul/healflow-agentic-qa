@@ -17,6 +17,5 @@ When('I press {string} in the search input', async function (key: string) {
 Then('I should see search results for {string}', async function (searchTerm: string) {
   const page: Page = this.page;
   await page.waitForURL(new RegExp(searchTerm), { timeout: 15000 });
-  // Intentionally broken assertion to test issue creation
-  await expect(page).toHaveURL(/this-url-will-never-match/, { timeout: 5000 });
+  await expect(page).toHaveURL(new RegExp(searchTerm));
 });
